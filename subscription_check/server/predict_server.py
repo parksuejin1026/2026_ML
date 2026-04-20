@@ -1,11 +1,11 @@
 """
 CatBoost 추론 서버
-- mock_data_3.csv로 피처 엔지니어링 + 모델 학습
+- train_and_save.py 로 생성한 model.cbm + stats.json 을 로드
 - POST /predict 로 단건 예측
 - POST /predict_batch 로 다건 예측
 """
 
-import os, json, math
+import os, json
 import numpy as np
 import pandas as pd
 from catboost import CatBoostClassifier
@@ -26,6 +26,10 @@ num_cols = [
     "cost_to_necessity_ratio", "cost_burden_x_replacement", "necessity_x_recency",
     "frequency_x_rebuy", "is_high_cost", "has_churn_signal", "is_zero_cost",
 ]
+
+SERVER_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(SERVER_DIR, "model.cbm")
+STATS_PATH = os.path.join(SERVER_DIR, "stats.json")
 
 USE_FREQ_MAP = {"rare": 1, "monthly": 2, "weekly": 3, "frequent": 4}
 RECENCY_MAP  = {">30d": 1, "7-30d": 2, "1-7d": 3, "<1d": 4}
@@ -63,62 +67,28 @@ def feature_engineer(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def train_model():
-    """CSV 로드 → 피처 엔지니어링 → CatBoost 튜닝 모델 학습"""
+def load_model():
+    """저장된 model.cbm + stats.json 로드"""
     global model, dataset_stats
 
-    csv_path = os.path.join(os.path.dirname(__file__), "..", "..", "mock_data_3.csv")
-    csv_path = os.path.abspath(csv_path)
-    print(f"[INFO] Loading dataset: {csv_path}")
-    df = pd.read_csv(csv_path)
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(
+            f"model.cbm 파일이 없습니다: {MODEL_PATH}\n"
+            "로컬에서 `python train_and_save.py` 를 먼저 실행하세요."
+        )
+    if not os.path.exists(STATS_PATH):
+        raise FileNotFoundError(
+            f"stats.json 파일이 없습니다: {STATS_PATH}\n"
+            "로컬에서 `python train_and_save.py` 를 먼저 실행하세요."
+        )
 
-    # 순서형 인코딩
-    df["use_frequency_score"]    = df["use_frequency"].map(USE_FREQ_MAP)
-    df["last_use_recency_score"] = df["last_use_recency"].map(RECENCY_MAP)
+    model = CatBoostClassifier()
+    model.load_model(MODEL_PATH)
+    print(f"[INFO] Model loaded ← {MODEL_PATH}")
 
-    # 실질 비용
-    df["effective_monthly_cost"] = (df["monthly_cost"] - df["discount_amount"]).clip(lower=0)
-
-    # 데이터셋 통계 저장 (z-score, is_high_cost에 필요)
-    dataset_stats["emc_mean"] = float(df["effective_monthly_cost"].mean())
-    dataset_stats["emc_std"]  = float(df["effective_monthly_cost"].std(ddof=0))
-    dataset_stats["high_cost_threshold"] = float(df["effective_monthly_cost"].quantile(0.75))
-    print(f"[INFO] Stats — mean: {dataset_stats['emc_mean']:.1f}, "
-          f"std: {dataset_stats['emc_std']:.1f}, "
-          f"high_cost_75p: {dataset_stats['high_cost_threshold']:.1f}")
-
-    # 피처 엔지니어링
-    df = feature_engineer(df)
-
-    # CatBoost용 데이터 준비
-    feature_cols = cat_cols + num_cols
-    feature_cols = [c for c in feature_cols if c in df.columns]
-
-    X = df[feature_cols].copy()
-    y = df["target"].astype(int)
-    for c in cat_cols:
-        X[c] = X[c].astype(str)
-
-    cat_feature_idx = [X.columns.get_loc(c) for c in cat_cols]
-    neg, pos = np.bincount(y)
-
-    # 튜닝된 최적 하이퍼파라미터 (노트북 Optuna 결과)
-    model = CatBoostClassifier(
-        iterations=1000,
-        learning_rate=0.018051353424731104,
-        depth=7,
-        l2_leaf_reg=3.937323054801693,
-        bagging_temperature=0.4970853936108525,
-        random_strength=2.23973725904685,
-        loss_function="Logloss",
-        eval_metric="AUC",
-        class_weights=[1.0, neg / pos],
-        random_seed=42,
-        verbose=200,
-    )
-    print(f"[INFO] Training CatBoost on {len(X)} samples...")
-    model.fit(X, y, cat_features=cat_feature_idx)
-    print("[INFO] Model training complete.")
+    with open(STATS_PATH) as f:
+        dataset_stats.update(json.load(f))
+    print(f"[INFO] Stats loaded ← {STATS_PATH} : {dataset_stats}")
 
 
 def build_reason(row: dict, is_churn: bool, proba: float) -> str:
@@ -248,6 +218,6 @@ def health():
 
 
 if __name__ == "__main__":
-    train_model()
+    load_model()
     print("[INFO] Server starting on port 5050")
     app.run(host="0.0.0.0", port=5050, debug=False)
