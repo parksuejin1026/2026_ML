@@ -8,7 +8,7 @@
 | 무엇을 바꿨는지 | 충족 | SMOTE, validation threshold, native categorical, class weight, regularization 변경 기록 | `submission3.md` 2장, 4장 |
 | 왜 바꿨는지 | 충족 | 각 실험별 목적과 하이퍼파라미터 변경 이유 설명 | `submission3.md` 2장, 4장, 8장 |
 | 결과가 어떻게 달라졌는지 | 충족 | 실험별 Accuracy, ROC-AUC, Precision(0), Recall(0), F1(0) 비교표 작성 | `submission3.md` 5장 |
-| 하이퍼파라미터 조정 | 충족 | `iterations`, `learning_rate`, `depth`, `l2_leaf_reg`, `class_weights`, `early_stopping_rounds` 비교 | `submission3.md` 4장 |
+| 하이퍼파라미터 조정 | 충족 | `iterations`, `learning_rate`, `depth`, `l2_leaf_reg`, `class_weights`, `early_stopping_rounds` 비교 및 최종 모델 주변 추가 탐색 | `submission3.md` 4장, 7장 |
 | learning rate 언급 | 충족 | 실험별 `learning_rate=0.018`, `0.03`, `0.025` 기록 | `submission3.md` 4장 |
 | max depth 언급 | 충족 | `depth=4`, `depth=5` 비교 및 변경 이유 기록 | `submission3.md` 4장 |
 | regularization 언급 | 충족 | `l2_leaf_reg`, `random_strength`, `bagging_temperature`, `early_stopping_rounds` 사용 | `submission3.md` 4장, 8장 |
@@ -49,6 +49,7 @@
 | 결과 해석이 솔직함 | Recall(0)은 개선됐지만 Accuracy/ROC-AUC는 낮아졌다는 trade-off를 명확히 설명함 |
 | 시각화 자료가 충분함 | 성능 비교, threshold 탐색, 혼동행렬, feature importance가 모두 포함됨 |
 | 최종 모델 선택 근거가 있음 | 단순히 Recall이 가장 높은 실험이 아니라 F1(0)과 오탐 부담을 함께 고려함 |
+| 최종 모델 검증이 추가됨 | 최종 조합 주변의 class weight, depth, regularization, learning rate를 추가 비교함 |
 
 ---
 
@@ -59,7 +60,7 @@
 | Feature selection | 중요도 낮은 변수 제거 후 재학습 실험까지 완료 | 추가 보완 불필요 |
 | 성능 기준 설명 | Recall(0) 중심 이유는 설명됨 | "왜 Accuracy보다 Recall(0)을 우선했는지"를 발표 때 강조 |
 | PDF 변환 | Markdown과 이미지 준비 완료 | PDF 변환 전 이미지가 깨지지 않는지 미리 확인 |
-| 실험 재현성 | 스크립트 존재 | `run_submission3_experiments.py`를 함께 제출하거나 부록으로 언급하면 좋음 |
+| 실험 재현성 | 스크립트와 추가 탐색 CSV 존재 | `run_submission3_experiments.py`, `submission3_final_model_probe.csv`를 함께 제출하거나 부록으로 언급하면 좋음 |
 
 ---
 
