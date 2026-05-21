@@ -1,14 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import '../config/server_config.dart';
+import '../config/backend_mode.dart';
 import '../models/subscription.dart';
 import '../providers/subscription_provider.dart';
 import 'device_id_service.dart';
 
 String get _baseUrl {
+  if (configuredServerBaseUrl.isNotEmpty) return configuredServerBaseUrl;
   if (kIsWeb) return 'http://localhost:5050';
-  return 'https://$serverHost';
+  throw StateError(
+    'SERVER_BASE_URL is required when BACKEND_ENABLED=true on this platform.',
+  );
 }
 
 Future<Map<String, String>> _jsonHeaders() async {
@@ -22,6 +25,10 @@ Future<Map<String, String>> _jsonHeaders() async {
 // ─── Subscription CRUD ─────────────────────────────────────────────────────
 
 Future<List<Subscription>> fetchSubscriptions() async {
+  if (!backendEnabled) {
+    return _mockSubscriptions.map((s) => s.copyWith()).toList();
+  }
+
   final response = await http.get(
     Uri.parse('$_baseUrl/subscriptions'),
     headers: await _jsonHeaders(),
@@ -36,6 +43,12 @@ Future<List<Subscription>> fetchSubscriptions() async {
 }
 
 Future<Subscription> createSubscription(Subscription s) async {
+  if (!backendEnabled) {
+    final created = s.copyWith(id: s.id.isEmpty ? _nextMockId() : s.id);
+    _mockSubscriptions.add(created);
+    return created;
+  }
+
   final response = await http.post(
     Uri.parse('$_baseUrl/subscriptions'),
     headers: await _jsonHeaders(),
@@ -45,10 +58,19 @@ Future<Subscription> createSubscription(Subscription s) async {
     throw Exception('구독 생성 실패: ${response.statusCode}');
   }
   return Subscription.fromServerJson(
-      jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
+    jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
+  );
 }
 
 Future<Subscription> patchSubscription(Subscription s) async {
+  if (!backendEnabled) {
+    final idx = _mockSubscriptions.indexWhere((item) => item.id == s.id);
+    if (idx >= 0) {
+      _mockSubscriptions[idx] = s;
+    }
+    return s;
+  }
+
   final response = await http.patch(
     Uri.parse('$_baseUrl/subscriptions/${s.id}'),
     headers: await _jsonHeaders(),
@@ -58,10 +80,16 @@ Future<Subscription> patchSubscription(Subscription s) async {
     throw Exception('구독 수정 실패: ${response.statusCode}');
   }
   return Subscription.fromServerJson(
-      jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
+    jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
+  );
 }
 
 Future<void> deleteSubscription(String id) async {
+  if (!backendEnabled) {
+    _mockSubscriptions.removeWhere((item) => item.id == id);
+    return;
+  }
+
   final response = await http.delete(
     Uri.parse('$_baseUrl/subscriptions/$id'),
     headers: await _jsonHeaders(),
@@ -74,7 +102,12 @@ Future<void> deleteSubscription(String id) async {
 // ─── Prediction ────────────────────────────────────────────────────────────
 
 Future<Map<String, ChurnResult>> predictBatch(
-    List<Subscription> subscriptions) async {
+  List<Subscription> subscriptions,
+) async {
+  if (!backendEnabled) {
+    return _mockPredictBatch(subscriptions);
+  }
+
   final body = subscriptions.map((s) => s.toApiJson()).toList();
 
   final response = await http.post(
@@ -107,6 +140,20 @@ Future<void> submitFeedback({
   required bool actualKept,
   String? subscriptionId,
 }) async {
+  if (!backendEnabled) {
+    final id = subscriptionId;
+    if (id != null) {
+      final idx = _mockSubscriptions.indexWhere((item) => item.id == id);
+      if (idx >= 0) {
+        _mockSubscriptions[idx] = _mockSubscriptions[idx].copyWith(
+          lastFeedbackKept: actualKept,
+          lastFeedbackAt: DateTime.now(),
+        );
+      }
+    }
+    return;
+  }
+
   final body = <String, dynamic>{
     'prediction_id': predictionId,
     'actual_kept': actualKept,
@@ -181,6 +228,10 @@ class SavingsSummary {
 }
 
 Future<SavingsSummary> fetchSavings() async {
+  if (!backendEnabled) {
+    return _mockSavingsSummary();
+  }
+
   final response = await http.get(
     Uri.parse('$_baseUrl/savings'),
     headers: await _jsonHeaders(),
@@ -189,10 +240,13 @@ Future<SavingsSummary> fetchSavings() async {
     throw Exception('절감액 조회 실패: ${response.statusCode}');
   }
   return SavingsSummary.fromJson(
-      jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>);
+    jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
+  );
 }
 
 Future<bool> checkServerHealth() async {
+  if (!backendEnabled) return false;
+
   try {
     final response = await http
         .get(Uri.parse('$_baseUrl/health'))
@@ -201,4 +255,122 @@ Future<bool> checkServerHealth() async {
   } catch (_) {
     return false;
   }
+}
+
+final _mockSubscriptions = <Subscription>[
+  Subscription(
+    id: 'demo-netflix',
+    name: 'Netflix',
+    type: 'Video',
+    monthlyCost: 17000,
+    useFrequency: UseFrequency.weekly,
+    lastUseRecency: LastUseRecency.between1and7d,
+    perceivedNecessity: 3,
+    replacementAvailable: true,
+    emoji: '🎬',
+  ),
+  Subscription(
+    id: 'demo-melon',
+    name: 'Melon',
+    type: 'Music',
+    monthlyCost: 10900,
+    useFrequency: UseFrequency.frequent,
+    lastUseRecency: LastUseRecency.under1d,
+    perceivedNecessity: 5,
+    replacementAvailable: false,
+    emoji: '🎧',
+  ),
+  Subscription(
+    id: 'demo-icloud',
+    name: 'iCloud+',
+    type: 'Cloud',
+    monthlyCost: 3300,
+    useFrequency: UseFrequency.frequent,
+    lastUseRecency: LastUseRecency.under1d,
+    perceivedNecessity: 4,
+    replacementAvailable: false,
+    emoji: '☁️',
+  ),
+  Subscription(
+    id: 'demo-news',
+    name: 'Digital News',
+    type: 'News',
+    monthlyCost: 12000,
+    useFrequency: UseFrequency.rare,
+    lastUseRecency: LastUseRecency.over30d,
+    perceivedNecessity: 2,
+    replacementAvailable: true,
+    emoji: '📰',
+  ),
+];
+
+int _mockId = 1000;
+int _mockPredictionId = 2000;
+
+String _nextMockId() {
+  _mockId += 1;
+  return 'demo-$_mockId';
+}
+
+Map<String, ChurnResult> _mockPredictBatch(List<Subscription> subscriptions) {
+  return {
+    for (final subscription in subscriptions)
+      subscription.id: _mockPrediction(subscription),
+  };
+}
+
+ChurnResult _mockPrediction(Subscription subscription) {
+  final lowUsage =
+      subscription.useFrequency == UseFrequency.rare ||
+      subscription.lastUseRecency == LastUseRecency.over30d;
+  final replaceable = subscription.replacementAvailable;
+  final expensive = subscription.effectiveMonthlyCost >= 12000;
+  final lowNeed = subscription.perceivedNecessity <= 2;
+  final isCandidate = (lowUsage && replaceable) || (expensive && lowNeed);
+  final confidence = isCandidate
+      ? (0.72 + (replaceable ? 0.08 : 0) + (lowNeed ? 0.07 : 0)).clamp(
+          0.0,
+          0.94,
+        )
+      : (0.38 + (subscription.perceivedNecessity / 20)).clamp(0.0, 0.68);
+
+  _mockPredictionId += 1;
+  return ChurnResult(
+    predictionId: _mockPredictionId,
+    isChurnCandidate: isCandidate,
+    confidence: confidence,
+    reason: isCandidate
+        ? '최근 사용 빈도와 필요도가 낮고 대체 서비스가 있어 해지 후보로 분류했어요.'
+        : '사용 빈도와 필요도가 높아 현재는 유지 가치가 더 높아 보여요.',
+    userFeedbackKept: subscription.lastFeedbackKept,
+  );
+}
+
+SavingsSummary _mockSavingsSummary() {
+  final cancelled = _mockSubscriptions
+      .where((subscription) => subscription.lastFeedbackKept == false)
+      .toList();
+  final kept = _mockSubscriptions
+      .where((subscription) => subscription.lastFeedbackKept == true)
+      .toList();
+  final monthlySavings = cancelled.fold<int>(
+    0,
+    (sum, subscription) => sum + subscription.effectiveMonthlyCost,
+  );
+
+  return SavingsSummary(
+    cancelledCount: cancelled.length,
+    keptCount: kept.length,
+    monthlySavings: monthlySavings,
+    cumulativeSavings: monthlySavings * 3,
+    history: [
+      for (var i = 0; i < cancelled.length; i++)
+        SavingsHistoryItem(
+          predictionId: 3000 + i,
+          subscriptionType: cancelled[i].type,
+          effectiveMonthlyCost: cancelled[i].effectiveMonthlyCost,
+          feedbackAt: cancelled[i].lastFeedbackAt,
+        ),
+    ],
+  );
 }

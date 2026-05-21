@@ -1,4 +1,6 @@
-// 이 파일을 복사하여 server_config.dart로 만들고 실제 IP를 입력하세요.
-// cp lib/config/server_config.dart.example lib/config/server_config.dart
+// 실제 백엔드 연결은 dart-define 으로 켭니다.
+// 기본 실행은 BACKEND_ENABLED=false 이며 mock 데이터만 사용합니다.
 
-const serverHost = 'YOUR_SERVER_IP'; // 예: '192.168.1.100'
+// 예:
+// flutter run -d chrome --dart-define=BACKEND_ENABLED=true
+// flutter run --dart-define=BACKEND_ENABLED=true --dart-define=SERVER_BASE_URL=https://example.com

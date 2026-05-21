@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/subscription_provider.dart';
 import '../services/app_preferences.dart';
 import '../theme/app_theme.dart';
 import 'app_lock_screen.dart';
@@ -17,6 +19,7 @@ class _AppGateState extends State<AppGate> {
   bool _loading = true;
   bool _termsAccepted = false;
   bool _needsUnlock = false;
+  bool _startedAppLoad = false;
 
   @override
   void initState() {
@@ -34,12 +37,25 @@ class _AppGateState extends State<AppGate> {
       _needsUnlock = lockEnabled && pin != null;
       _loading = false;
     });
+    _loadAppDataIfReady();
   }
 
   Future<void> _acceptTerms() async {
     await AppPreferences.setTermsAccepted(true);
     if (!mounted) return;
     setState(() => _termsAccepted = true);
+    _loadAppDataIfReady();
+  }
+
+  void _unlock() {
+    setState(() => _needsUnlock = false);
+    _loadAppDataIfReady();
+  }
+
+  void _loadAppDataIfReady() {
+    if (_startedAppLoad || !_termsAccepted || _needsUnlock) return;
+    _startedAppLoad = true;
+    context.read<SubscriptionProvider>().loadFromServer();
   }
 
   @override
@@ -52,16 +68,11 @@ class _AppGateState extends State<AppGate> {
     }
 
     if (!_termsAccepted) {
-      return TermsScreen(
-        showAgreeButton: true,
-        onAgree: _acceptTerms,
-      );
+      return TermsScreen(showAgreeButton: true, onAgree: _acceptTerms);
     }
 
     if (_needsUnlock) {
-      return AppLockScreen(
-        onUnlocked: () => setState(() => _needsUnlock = false),
-      );
+      return AppLockScreen(onUnlocked: _unlock);
     }
 
     return const MainShell();

@@ -20,6 +20,8 @@
 
 ## 현재 프론트 동작 방식
 
+- 기본 실행은 프론트엔드 전용 모드입니다. `BACKEND_ENABLED`의 기본값이 `false`라서 구독 CRUD, 해지 예측, 절감액 조회는 앱 내부 mock 데이터로 동작하고 실제 서버 요청이나 기기 ID 생성은 발생하지 않습니다.
+- 실제 백엔드를 사용할 때는 빌드/실행 시 `--dart-define=BACKEND_ENABLED=true`를 지정합니다. 웹은 기본 `http://localhost:5050`을 사용하고, 다른 플랫폼이나 별도 호스트는 `--dart-define=SERVER_BASE_URL=<url>`을 함께 지정합니다.
 - 해지 추천 탭은 기존 `/predict_batch` 결과가 `SubscriptionProvider.results`에 들어온 뒤 작동합니다.
 - 캘린더 탭은 실제 결제일 데이터가 없으므로 구독 목록 순서 기반으로 임시 결제일을 생성합니다.
 - 결제일 선택, 날짜별 결제 목록, 월/연도 선택은 모두 프론트엔드 로컬 상태로 동작합니다.
