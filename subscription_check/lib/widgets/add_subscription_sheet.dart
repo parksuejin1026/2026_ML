@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -25,7 +27,15 @@ class _CategoryTab {
   const _CategoryTab({required this.key, required this.label});
 }
 
-const _types = ['Music', 'Video', 'Education', 'Fitness', 'Game', 'News', 'Cloud'];
+const _types = [
+  'Music',
+  'Video',
+  'Education',
+  'Fitness',
+  'Game',
+  'News',
+  'Cloud'
+];
 
 class _FreqOption {
   final UseFrequency value;
@@ -183,8 +193,7 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
             Expanded(
               child: Center(
                 child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: _maxContentWidth),
+                  constraints: const BoxConstraints(maxWidth: _maxContentWidth),
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 260),
                     transitionBuilder: (child, animation) => FadeTransition(
@@ -292,9 +301,7 @@ class _Header extends StatelessWidget {
                       color: AppColors.divider,
                       alignment: Alignment.centerLeft,
                       child: TweenAnimationBuilder<double>(
-                        tween: Tween(
-                            begin: 0,
-                            end: (step + 1) / totalSteps),
+                        tween: Tween(begin: 0, end: (step + 1) / totalSteps),
                         duration: const Duration(milliseconds: 280),
                         curve: Curves.easeOutCubic,
                         builder: (_, v, __) => FractionallySizedBox(
@@ -365,9 +372,7 @@ class _BottomCta extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(
                 20, 12, 20, 16 + bottomPad + extraBottomInset),
             child: GestureDetector(
-              onTap: isLast
-                  ? onSubmit
-                  : (canGoNext ? onNext : null),
+              onTap: isLast ? onSubmit : (canGoNext ? onNext : null),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
                 height: 54,
@@ -471,11 +476,11 @@ class _Step1 extends StatelessWidget {
                         state.setState(() => state._editingPreset = true),
                   )
                 : _ManualForm(
-                    key: ValueKey(
-                        state._selectedPreset == null ? 'manual' : 'preset-edit'),
-                    title: state._selectedPreset != null
-                        ? '서비스 정보 수정'
-                        : '직접 입력',
+                    key: ValueKey(state._selectedPreset == null
+                        ? 'manual'
+                        : 'preset-edit'),
+                    title:
+                        state._selectedPreset != null ? '서비스 정보 수정' : '직접 입력',
                     nameCtrl: state._nameCtrl,
                     costCtrl: state._costCtrl,
                     type: state._type,
@@ -569,8 +574,7 @@ class _CategoryTabsBar extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color:
-                      isActive ? Colors.white : AppColors.textTertiary,
+                  color: isActive ? Colors.white : AppColors.textTertiary,
                 ),
               ),
             ),
@@ -680,9 +684,9 @@ class _PresetChip extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${preset.monthlyCost.toString().replaceAllMapped(
-                RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-                (m) => '${m[1]},',
-              )}원',
+                    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                    (m) => '${m[1]},',
+                  )}원',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -782,8 +786,7 @@ class _PresetInfoCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
-              child: Text(preset.emoji,
-                  style: const TextStyle(fontSize: 22)),
+              child: Text(preset.emoji, style: const TextStyle(fontSize: 22)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -812,8 +815,8 @@ class _PresetInfoCard extends StatelessWidget {
             GestureDetector(
               onTap: onEdit,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primarySoft,
                   borderRadius: BorderRadius.circular(8),
@@ -889,8 +892,7 @@ class _ManualForm extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _TypeDropdown(
-                    type: type, onChanged: onTypeChanged),
+                child: _TypeDropdown(type: type, onChanged: onTypeChanged),
               ),
               const SizedBox(width: 12),
               Expanded(

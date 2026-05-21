@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/subscription_provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/app_gate.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => SubscriptionProvider()..loadFromServer(),
+      create: (_) => SubscriptionProvider(),
       child: const MyApp(),
     ),
   );
@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
       title: 'SubCut',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const HomeScreen(),
+      home: const AppGate(),
       builder: (context, child) {
         return GestureDetector(
           behavior: HitTestBehavior.translucent,
