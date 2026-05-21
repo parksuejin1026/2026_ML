@@ -1,20 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/subscription.dart';
 import '../providers/subscription_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_top_bar.dart';
 import '../widgets/subscription_card.dart';
 import '../widgets/add_subscription_sheet.dart';
-import 'analytics_screen.dart';
 
 const double _maxContentWidth = 460;
 
-class HomeScreen extends StatelessWidget {
+enum _HomeSort { recommended, priceDesc, priceAsc, name }
+
+const _categoryFilters = [
+  _CategoryFilter('all', '전체'),
+  _CategoryFilter('Video', '영상'),
+  _CategoryFilter('Music', '음악'),
+  _CategoryFilter('Cloud', '생활'),
+  _CategoryFilter('Education', '교육'),
+  _CategoryFilter('Game', '게임'),
+  _CategoryFilter('Fitness', '운동'),
+  _CategoryFilter('News', '뉴스'),
+];
+
+class _CategoryFilter {
+  final String key;
+  final String label;
+  const _CategoryFilter(this.key, this.label);
+}
+
+String _sortLabel(_HomeSort sort) {
+  switch (sort) {
+    case _HomeSort.recommended:
+      return '추천순';
+    case _HomeSort.priceDesc:
+      return '높은 금액순';
+    case _HomeSort.priceAsc:
+      return '낮은 금액순';
+    case _HomeSort.name:
+      return '이름순';
+  }
+}
+
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  void _openAnalytics(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
-    );
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _category = 'all';
+  _HomeSort _sort = _HomeSort.recommended;
+
+  List<Subscription> _visibleItems(SubscriptionProvider provider) {
+    final items = provider.items.where((item) {
+      return _category == 'all' || item.type == _category;
+    }).toList();
+
+    items.sort((a, b) {
+      switch (_sort) {
+        case _HomeSort.recommended:
+          final ar = provider.results[a.id];
+          final br = provider.results[b.id];
+          final aScore =
+              (ar?.isChurnCandidate == true ? 1000 : 0) + (ar?.confidence ?? 0);
+          final bScore =
+              (br?.isChurnCandidate == true ? 1000 : 0) + (br?.confidence ?? 0);
+          return bScore.compareTo(aScore);
+        case _HomeSort.priceDesc:
+          return b.effectiveMonthlyCost.compareTo(a.effectiveMonthlyCost);
+        case _HomeSort.priceAsc:
+          return a.effectiveMonthlyCost.compareTo(b.effectiveMonthlyCost);
+        case _HomeSort.name:
+          return a.name.compareTo(b.name);
+      }
+    });
+    return items;
   }
 
   void _openAddSheet(BuildContext context) {
@@ -44,135 +105,128 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Consumer<SubscriptionProvider>(
-          builder: (context, provider, _) {
-            return Stack(
-              children: [
-                RefreshIndicator(
-                  onRefresh: () => provider.loadFromServer(),
-                  color: AppColors.primary,
-                  child: CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: _Header(
-                          onTapAnalytics: () => _openAnalytics(context),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _HeroSection(provider: provider),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _SubscriptionListSection(
-                          provider: provider,
-                          onAdd: () => _openAddSheet(context),
-                        ),
-                      ),
-                      if (provider.errorMessage != null)
-                        SliverToBoxAdapter(
-                          child: _ErrorBanner(message: provider.errorMessage!),
-                        ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
-                    ],
-                  ),
-                ),
-                if (provider.items.isNotEmpty)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: MediaQuery.of(context).padding.bottom + 24,
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: ConstrainedBox(
-                        constraints:
-                            const BoxConstraints(maxWidth: _maxContentWidth),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              _FloatingAddButton(
-                                  onTap: () => _openAddSheet(context)),
-                            ],
+      body: Consumer<SubscriptionProvider>(
+        builder: (context, provider, _) {
+          return Stack(
+            children: [
+              Column(
+                children: [
+                  _Header(onAdd: () => _openAddSheet(context)),
+                  _HeroSection(provider: provider),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => provider.loadFromServer(),
+                      color: AppColors.primary,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: _SubscriptionListSection(
+                              provider: provider,
+                              items: _visibleItems(provider),
+                              category: _category,
+                              sort: _sort,
+                              onCategoryChanged: (value) {
+                                setState(() => _category = value);
+                              },
+                              onSortChanged: (value) {
+                                setState(() => _sort = value);
+                              },
+                              onAdd: () => _openAddSheet(context),
+                            ),
                           ),
+                          if (provider.errorMessage != null)
+                            SliverToBoxAdapter(
+                              child:
+                                  _ErrorBanner(message: provider.errorMessage!),
+                            ),
+                          const SliverToBoxAdapter(
+                              child: SizedBox(height: 138)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (provider.items.isNotEmpty)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: MediaQuery.of(context).padding.bottom + 94,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: ConstrainedBox(
+                      constraints:
+                          const BoxConstraints(maxWidth: _maxContentWidth),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _FloatingAddButton(
+                                onTap: () => _openAddSheet(context)),
+                          ],
                         ),
                       ),
                     ),
                   ),
-              ],
-            );
-          },
-        ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class _Header extends StatelessWidget {
-  final VoidCallback onTapAnalytics;
-  const _Header({required this.onTapAnalytics});
+  final VoidCallback onAdd;
+  const _Header({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 12, 0),
-            child: SizedBox(
-              height: 60,
-              child: Row(
-                children: [
-                  _Logo(),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Text(
-                        'SubCut',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -0.34,
-                          height: 1.1,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '스마트 구독 관리',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textTertiary,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _AnalyticsIconButton(onTap: onTapAnalytics),
-                ],
+    return AppTopBar(
+      child: Row(
+        children: [
+          _Logo(),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Text(
+                'SubCut',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.34,
+                  height: 1.1,
+                ),
               ),
-            ),
+              SizedBox(height: 2),
+              Text(
+                '스마트 구독 관리',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textTertiary,
+                  height: 1.2,
+                ),
+              ),
+            ],
           ),
-        ),
+          const Spacer(),
+          _HeaderAddButton(onTap: onAdd),
+        ],
       ),
     );
   }
 }
 
-class _AnalyticsIconButton extends StatelessWidget {
+class _HeaderAddButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _AnalyticsIconButton({required this.onTap});
+  const _HeaderAddButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +242,7 @@ class _AnalyticsIconButton extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: const Icon(
-          Icons.bar_chart_rounded,
+          Icons.add_rounded,
           size: 20,
           color: AppColors.textSecondary,
         ),
@@ -333,9 +387,21 @@ class _HeroSection extends StatelessWidget {
 
 class _SubscriptionListSection extends StatelessWidget {
   final SubscriptionProvider provider;
+  final List<Subscription> items;
+  final String category;
+  final _HomeSort sort;
+  final ValueChanged<String> onCategoryChanged;
+  final ValueChanged<_HomeSort> onSortChanged;
   final VoidCallback onAdd;
-  const _SubscriptionListSection(
-      {required this.provider, required this.onAdd});
+  const _SubscriptionListSection({
+    required this.provider,
+    required this.items,
+    required this.category,
+    required this.sort,
+    required this.onCategoryChanged,
+    required this.onSortChanged,
+    required this.onAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -362,7 +428,6 @@ class _SubscriptionListSection extends StatelessWidget {
   }
 
   Widget _buildList(BuildContext context) {
-    final items = provider.items;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
@@ -374,70 +439,239 @@ class _SubscriptionListSection extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 12, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '내 구독 ${items.length}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: Size.zero,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      foregroundColor: AppColors.primary,
-                    ),
-                    onPressed: onAdd,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '추가',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '내 구독 ${items.length}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
-                        Icon(Icons.chevron_right,
-                            size: 16, color: AppColors.primary),
-                      ],
-                    ),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: AppColors.primary,
+                        ),
+                        onPressed: onAdd,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '추가',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Icon(Icons.chevron_right,
+                                size: 16, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _FilterBar(
+                    active: category,
+                    onChanged: onCategoryChanged,
+                  ),
+                  const SizedBox(height: 10),
+                  _SortBar(
+                    sort: sort,
+                    onChanged: onSortChanged,
+                    visibleCount: items.length,
+                    totalCount: provider.items.length,
                   ),
                 ],
               ),
             ),
-            for (var i = 0; i < items.length; i++) ...[
-              SubscriptionCard(
-                subscription: items[i],
-                result: provider.results[items[i].id],
-                onDelete: () => provider.removeSubscription(items[i].id),
-                onUpdate: provider.updateSubscription,
-                onFeedback: (kept) => provider.submitChurnFeedback(
-                  subscriptionId: items[i].id,
-                  actualKept: kept,
-                ),
-              ),
-              if (i < items.length - 1)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: AppColors.divider,
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 36),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  decoration: BoxDecoration(
+                    color: AppColors.neutralSoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.filter_alt_off_outlined,
+                          size: 26, color: AppColors.textDisabled),
+                      SizedBox(height: 8),
+                      Text(
+                        '조건에 맞는 구독이 없어요',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+              )
+            else
+              for (var i = 0; i < items.length; i++) ...[
+                SubscriptionCard(
+                  subscription: items[i],
+                  result: provider.results[items[i].id],
+                  onDelete: () => provider.removeSubscription(items[i].id),
+                  onUpdate: provider.updateSubscription,
+                  onFeedback: (kept) => provider.submitChurnFeedback(
+                    subscriptionId: items[i].id,
+                    actualKept: kept,
+                  ),
+                ),
+                if (i < items.length - 1)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppColors.divider,
+                    ),
+                  ),
+              ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FilterBar extends StatelessWidget {
+  final String active;
+  final ValueChanged<String> onChanged;
+
+  const _FilterBar({required this.active, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categoryFilters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final item = _categoryFilters[i];
+          final selected = active == item.key;
+          return GestureDetector(
+            onTap: () => onChanged(item.key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? AppColors.textPrimary : AppColors.neutralChip,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : AppColors.textTertiary,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SortBar extends StatelessWidget {
+  final _HomeSort sort;
+  final ValueChanged<_HomeSort> onChanged;
+  final int visibleCount;
+  final int totalCount;
+
+  const _SortBar({
+    required this.sort,
+    required this.onChanged,
+    required this.visibleCount,
+    required this.totalCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          totalCount == visibleCount
+              ? '전체 $totalCount개'
+              : '$visibleCount / $totalCount개',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const Spacer(),
+        PopupMenuButton<_HomeSort>(
+          initialValue: sort,
+          onSelected: onChanged,
+          color: AppColors.surface,
+          surfaceTintColor: Colors.transparent,
+          position: PopupMenuPosition.under,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          itemBuilder: (context) => [
+            for (final option in _HomeSort.values)
+              PopupMenuItem(
+                value: option,
+                child: Text(
+                  _sortLabel(option),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+          ],
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.neutralSoft,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.swap_vert_rounded,
+                    size: 16, color: AppColors.textTertiary),
+                const SizedBox(width: 5),
+                Text(
+                  _sortLabel(sort),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,11 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="subscription_check"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        <!-- 로컬 ML 서버(HTTP) 연결을 위한 개발용 설정 -->
         android:usesCleartextTraffic="true">
+        <!-- 로컬 ML 서버(HTTP) 연결을 위한 개발용 설정 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

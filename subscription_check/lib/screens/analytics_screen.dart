@@ -7,6 +7,7 @@ import '../models/subscription.dart';
 import '../providers/subscription_provider.dart';
 import '../services/predict_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_top_bar.dart';
 
 const double _maxContentWidth = 460;
 
@@ -36,7 +37,9 @@ String _categoryLabel(String key) => _categoryLabels[key] ?? key;
 Color _categoryColor(String key) => _categoryColors[key] ?? _etcColor;
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+  final bool showBackButton;
+
+  const AnalyticsScreen({super.key, this.showBackButton = true});
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -62,90 +65,82 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Consumer<SubscriptionProvider>(
-          builder: (context, provider, _) {
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              color: AppColors.primary,
-              child: CustomScrollView(
-                slivers: [
-                  const SliverToBoxAdapter(child: _Header()),
-                  SliverToBoxAdapter(
-                    child: FutureBuilder<SavingsSummary>(
-                      future: _savingsFuture,
-                      builder: (context, snapshot) {
-                        return _SavingsHeroSection(snapshot: snapshot);
-                      },
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _CategoryBreakdownSection(provider: provider),
-                  ),
-                  SliverToBoxAdapter(
-                    child: FutureBuilder<SavingsSummary>(
-                      future: _savingsFuture,
-                      builder: (context, snapshot) {
-                        final summary = snapshot.data;
-                        if (summary == null || summary.history.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
-                        return _CancellationHistorySection(
-                            history: summary.history);
-                      },
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
-                ],
+      body: Consumer<SubscriptionProvider>(
+        builder: (context, provider, _) {
+          return Column(
+            children: [
+              _Header(showBackButton: widget.showBackButton),
+              FutureBuilder<SavingsSummary>(
+                future: _savingsFuture,
+                builder: (context, snapshot) {
+                  return _SavingsHeroSection(snapshot: snapshot);
+                },
               ),
-            );
-          },
-        ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  color: AppColors.primary,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: _CategoryBreakdownSection(provider: provider),
+                      ),
+                      SliverToBoxAdapter(
+                        child: FutureBuilder<SavingsSummary>(
+                          future: _savingsFuture,
+                          builder: (context, snapshot) {
+                            final summary = snapshot.data;
+                            if (summary == null || summary.history.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            return _CancellationHistorySection(
+                                history: summary.history);
+                          },
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 138)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  final bool showBackButton;
+  const _Header({required this.showBackButton});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: SizedBox(
-              height: 60,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new,
-                        size: 18, color: AppColors.textPrimary),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    '지출 분석',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.34,
-                    ),
-                  ),
-                ],
-              ),
+    return AppTopBar(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          if (showBackButton) ...[
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new,
+                  size: 18, color: AppColors.textPrimary),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            const SizedBox(width: 4),
+          ] else
+            const SizedBox(width: 16),
+          const Text(
+            '지출 분석',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.34,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -191,7 +186,9 @@ class _SavingsHeroSection extends StatelessWidget {
                 const SizedBox(height: 16),
                 if (!isLoading && !hasError && summary != null)
                   _SavingsMetaRow(summary: summary),
-                if (!isLoading && !hasError && summary != null &&
+                if (!isLoading &&
+                    !hasError &&
+                    summary != null &&
                     summary.cancelledCount == 0)
                   const Padding(
                     padding: EdgeInsets.only(top: 10),
@@ -397,9 +394,7 @@ class _CategoryBreakdownSectionState extends State<_CategoryBreakdownSection> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  total > 0
-                      ? '이번 달 ${formatKRW(total)}원 지출 중'
-                      : '등록된 구독이 없어요',
+                  total > 0 ? '이번 달 ${formatKRW(total)}원 지출 중' : '등록된 구독이 없어요',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary,
@@ -645,7 +640,8 @@ class _HistoryRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: _categoryColor(item.subscriptionType).withValues(alpha: 0.12),
+              color:
+                  _categoryColor(item.subscriptionType).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
