@@ -8,11 +8,11 @@ class AppColors {
   static const Color divider = Color(0xFFF2F4F6);
   static const Color border = Color(0xFFECEEF0);
 
-  static const Color primary = Color(0xFF3182F6);
-  static const Color primaryLight = Color(0xFF4593FC);
-  static const Color primaryDark = Color(0xFF1B64DA);
-  static const Color primarySoft = Color(0xFFE8F3FF);
-  static const Color primarySoftBg = Color(0xFFEEF4FF);
+  static const Color primary = Color(0xFF53B2FF);
+  static const Color primaryLight = Color(0xFF7CC5FF);
+  static const Color primaryDark = Color(0xFF258FE8);
+  static const Color primarySoft = Color(0xFFEAF6FF);
+  static const Color primarySoftBg = Color(0xFFF2FAFF);
 
   static const Color textPrimary = Color(0xFF191F28);
   static const Color textSecondary = Color(0xFF4E5968);

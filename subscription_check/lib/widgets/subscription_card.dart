@@ -27,6 +27,7 @@ class SubscriptionCard extends StatefulWidget {
 class _SubscriptionCardState extends State<SubscriptionCard> {
   bool _expanded = false;
   bool _editing = false;
+  bool _controllersReady = false;
 
   // Edit state
   late bool _replacement;
@@ -52,10 +53,17 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
     final s = widget.subscription;
     _replacement = s.replacementAvailable;
     _isAnnual = s.isAnnual;
-    _remainingCtrl =
-        TextEditingController(text: s.remainingMonths.toString());
-    _discountCtrl = TextEditingController(
-        text: s.discountAmount > 0 ? s.discountAmount.toString() : '');
+    final remainingText = s.remainingMonths.toString();
+    final discountText =
+        s.discountAmount > 0 ? s.discountAmount.toString() : '';
+    if (_controllersReady) {
+      _remainingCtrl.text = remainingText;
+      _discountCtrl.text = discountText;
+    } else {
+      _remainingCtrl = TextEditingController(text: remainingText);
+      _discountCtrl = TextEditingController(text: discountText);
+      _controllersReady = true;
+    }
   }
 
   @override
@@ -80,6 +88,32 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
       _resetEditState();
       _editing = false;
     });
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('구독을 삭제할까요?'),
+        content: Text(
+          '${widget.subscription.name} 구독 정보와 분석 결과가 목록에서 제거됩니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) widget.onDelete();
   }
 
   @override
@@ -161,7 +195,8 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
                 ),
                 const SizedBox(width: 6),
                 Icon(
-                  _expanded ? Icons.keyboard_arrow_up
+                  _expanded
+                      ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   size: 18,
                   color: AppColors.textPlaceholder,
@@ -194,8 +229,7 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
           if (result != null && widget.onFeedback != null) ...[
             _FeedbackRow(
               // 서버에 영구 저장된 값을 우선 사용, 없으면 세션 내 상태로 fallback
-              currentFeedback:
-                  sub.lastFeedbackKept ?? result.userFeedbackKept,
+              currentFeedback: sub.lastFeedbackKept ?? result.userFeedbackKept,
               onSelect: widget.onFeedback!,
             ),
             const SizedBox(height: 12),
@@ -222,13 +256,12 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
           ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: widget.onDelete,
+            onTap: _confirmDelete,
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  Icon(Icons.delete_outline,
-                      size: 14, color: AppColors.danger),
+                  Icon(Icons.delete_outline, size: 14, color: AppColors.danger),
                   SizedBox(width: 6),
                   Text(
                     '구독 삭제',
@@ -287,8 +320,7 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
           _toggleRow('대체 서비스 있음', _replacement,
               (v) => setState(() => _replacement = v)),
           const SizedBox(height: 14),
-          _toggleRow('연간 구독', _isAnnual,
-              (v) => setState(() => _isAnnual = v)),
+          _toggleRow('연간 구독', _isAnnual, (v) => setState(() => _isAnnual = v)),
           const SizedBox(height: 14),
           _inputRow('남은 기간', _remainingCtrl, '0', '개월',
               keyboardType:

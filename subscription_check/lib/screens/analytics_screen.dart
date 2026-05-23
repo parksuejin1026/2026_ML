@@ -22,7 +22,7 @@ const _categoryLabels = {
 };
 
 const _categoryColors = {
-  'Video': Color(0xFF3182F6),
+  'Video': Color(0xFF53B2FF),
   'Music': Color(0xFF7C5CFA),
   'Cloud': Color(0xFF00B386),
   'Education': Color(0xFFF6A63B),
@@ -137,7 +137,7 @@ class _Header extends StatelessWidget {
               fontSize: 17,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
-              letterSpacing: -0.34,
+              letterSpacing: 0,
             ),
           ),
         ],
@@ -163,44 +163,52 @@ class _SavingsHeroSection extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '지금까지 절약한 금액',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textTertiary,
+          child: SizedBox(
+            height: 144,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '지금까지 절약한 금액',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (isLoading)
-                  const _BigAmountPlaceholder()
-                else if (hasError || summary == null)
-                  const _BigAmountError()
-                else
-                  _BigAmount(value: summary.cumulativeSavings),
-                const SizedBox(height: 16),
-                if (!isLoading && !hasError && summary != null)
-                  _SavingsMetaRow(summary: summary),
-                if (!isLoading &&
-                    !hasError &&
-                    summary != null &&
-                    summary.cancelledCount == 0)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 10),
-                    child: Text(
+                  const SizedBox(height: 8),
+                  if (isLoading)
+                    const _BigAmountPlaceholder()
+                  else if (hasError || summary == null)
+                    const _BigAmountError()
+                  else
+                    _BigAmount(value: summary.cumulativeSavings),
+                  const SizedBox(height: 10),
+                  if (!isLoading &&
+                      !hasError &&
+                      summary != null &&
+                      summary.cancelledCount == 0)
+                    const Text(
                       '해지 피드백을 남기면 절감액이 쌓여요',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textDisabled,
+                      ),
+                    )
+                  else if (!isLoading && !hasError && summary != null)
+                    Text(
+                      '해지 피드백 ${summary.cancelledCount}건 반영',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                         color: AppColors.textDisabled,
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -218,14 +226,19 @@ class _BigAmount extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          formatKRW(value),
-          style: const TextStyle(
-            fontSize: 40,
-            fontWeight: FontWeight.w800,
-            color: AppColors.success,
-            letterSpacing: -1.6,
-            height: 1.0,
+        Flexible(
+          child: Text(
+            formatKRW(value),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.left,
+            style: const TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.w800,
+              color: AppColors.success,
+              letterSpacing: 0,
+              height: 1.0,
+            ),
           ),
         ),
         const SizedBox(width: 6),
@@ -273,79 +286,6 @@ class _BigAmountError extends StatelessWidget {
         fontWeight: FontWeight.w800,
         color: AppColors.textDisabled,
         height: 1.0,
-      ),
-    );
-  }
-}
-
-class _SavingsMetaRow extends StatelessWidget {
-  final SavingsSummary summary;
-  const _SavingsMetaRow({required this.summary});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _MetaPill(
-          label: '이번 달 절약',
-          value: '${formatKRW(summary.monthlySavings)}원',
-          color: AppColors.success,
-          bg: AppColors.successSoft,
-        ),
-        const SizedBox(width: 8),
-        _MetaPill(
-          label: '해지한 구독',
-          value: '${summary.cancelledCount}건',
-          color: AppColors.primaryDark,
-          bg: AppColors.primarySoft,
-        ),
-      ],
-    );
-  }
-}
-
-class _MetaPill extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final Color bg;
-
-  const _MetaPill({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.bg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: color.withValues(alpha: 0.75),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }

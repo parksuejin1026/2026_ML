@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/app_preferences.dart';
 import '../theme/app_theme.dart';
@@ -152,7 +153,10 @@ class _KeyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         width: 72,
         height: 56,
@@ -189,7 +193,12 @@ class _IconKeyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: enabled
+          ? () {
+              HapticFeedback.selectionClick();
+              onTap?.call();
+            }
+          : null,
       child: Container(
         width: 72,
         height: 56,

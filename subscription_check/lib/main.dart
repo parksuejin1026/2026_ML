@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'config/app_brand.dart';
 import 'providers/subscription_provider.dart';
 import 'screens/app_gate.dart';
 import 'theme/app_theme.dart';
@@ -27,7 +28,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SubCut',
+      title: AppBrand.displayName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       home: const AppGate(),

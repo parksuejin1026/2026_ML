@@ -92,7 +92,7 @@ class _Header extends StatelessWidget {
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
-            letterSpacing: -0.34,
+            letterSpacing: 0,
           ),
         ),
       ),
@@ -118,69 +118,77 @@ class _Hero extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 26),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text(
-                      '이번 달 줄일 수 있는 금액',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    if (isAnalyzing) ...[
-                      const SizedBox(width: 8),
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      formatKRW(saveable),
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.danger,
-                        letterSpacing: -1.4,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 3),
-                      child: Text(
-                        '원',
+          child: SizedBox(
+            height: 144,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        '이번 달 줄일 수 있는 금액',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textTertiary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  count > 0 ? '$count개 구독이 해지 후보예요' : '아직 해지 후보가 없어요',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textDisabled,
+                      if (isAnalyzing) ...[
+                        const SizedBox(width: 8),
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          formatKRW(saveable),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.left,
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.danger,
+                            letterSpacing: 0,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 3),
+                        child: Text(
+                          '원',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    count > 0 ? '$count개 구독이 해지 후보예요' : '아직 해지 후보가 없어요',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textDisabled,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../config/app_brand.dart';
 import '../models/subscription.dart';
 import '../providers/subscription_provider.dart';
 import '../theme/app_theme.dart';
@@ -111,8 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Column(
                 children: [
-                  _Header(onAdd: () => _openAddSheet(context)),
-                  _HeroSection(provider: provider),
+                  const _Header(),
+                  _HeroSection(
+                    provider: provider,
+                    onAdd: () => _openAddSheet(context),
+                  ),
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () => provider.loadFromServer(),
@@ -148,29 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              if (provider.items.isNotEmpty)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: MediaQuery.of(context).padding.bottom + 94,
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(maxWidth: _maxContentWidth),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            _FloatingAddButton(
-                                onTap: () => _openAddSheet(context)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           );
         },
@@ -180,98 +161,44 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _Header extends StatelessWidget {
-  final VoidCallback onAdd;
-  const _Header({required this.onAdd});
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
     return AppTopBar(
       child: Row(
         children: [
-          _Logo(),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Text(
-                'SubCut',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.34,
-                  height: 1.1,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Text(
+                  AppBrand.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 0,
+                    height: 1.1,
+                  ),
                 ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                '스마트 구독 관리',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textTertiary,
-                  height: 1.2,
+                SizedBox(height: 3),
+                Text(
+                  '스마트 구독 관리',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textTertiary,
+                    height: 1.2,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          _HeaderAddButton(onTap: onAdd),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderAddButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _HeaderAddButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.neutralChip,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(
-          Icons.add_rounded,
-          size: 20,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-}
-
-class _Logo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+              ],
+            ),
           ),
         ],
-      ),
-      alignment: Alignment.center,
-      child: Transform.rotate(
-        angle: -0.785, // -45°
-        child: const Icon(Icons.content_cut, size: 18, color: Colors.white),
       ),
     );
   }
@@ -279,7 +206,8 @@ class _Logo extends StatelessWidget {
 
 class _HeroSection extends StatelessWidget {
   final SubscriptionProvider provider;
-  const _HeroSection({required this.provider});
+  final VoidCallback onAdd;
+  const _HeroSection({required this.provider, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -291,92 +219,123 @@ class _HeroSection extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '매달 빠져나가는 돈',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                              begin: const Offset(0, 0.3), end: Offset.zero)
-                          .animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: Row(
-                    key: ValueKey(total),
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        formatKRW(total),
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                          letterSpacing: -1.6,
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 3),
-                        child: Text(
-                          '원',
+          child: SizedBox(
+            height: 144,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 66),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '매달 빠져나가는 돈',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textTertiary,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text(
-                      '${provider.items.length}개 구독 서비스 이용 중',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textDisabled,
-                      ),
+                        const SizedBox(height: 8),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 240),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.3),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          ),
+                          child: Row(
+                            key: ValueKey(total),
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  formatKRW(total),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.left,
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: 0,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  '원',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${provider.items.length}개 구독 서비스 이용 중',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.textDisabled,
+                                ),
+                              ),
+                            ),
+                            if (saveable > 0) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.dangerSoft,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '월 ${formatKRW(saveable)}원 절약 가능',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.danger,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    if (saveable > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.dangerSoft,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '월 ${formatKRW(saveable)}원 절약 가능',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.danger,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 28,
+                    child: _FloatingAddButton(onTap: onAdd),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -757,8 +716,8 @@ class _FloatingAddButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 56,
-        height: 56,
+        width: 54,
+        height: 54,
         decoration: BoxDecoration(
           gradient: AppColors.primarySimpleGradient,
           shape: BoxShape.circle,

@@ -1,6 +1,6 @@
-# subscription_check
+# 섭컷 SubCut
 
-A new Flutter project.
+구독 지출, 결제 일정, 해지 추천을 한눈에 관리하는 Flutter 앱입니다.
 
 ## Getting Started
 
