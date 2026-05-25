@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/app_brand.dart';
 import '../services/app_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pin_keypad.dart';
@@ -96,26 +97,17 @@ class _AppLockScreenState extends State<AppLockScreen> {
               child: Column(
                 children: [
                   const Spacer(),
-                  Container(
-                    width: 62,
-                    height: 62,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    alignment: Alignment.center,
-                    child: Transform.rotate(
-                      angle: -0.785,
-                      child: const Icon(
-                        Icons.content_cut,
-                        size: 25,
-                        color: Colors.white,
-                      ),
+                  const Text(
+                    AppBrand.displayName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 8),
                   const Text(
-                    'SubCut 잠금 해제',
+                    '잠금 해제',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,

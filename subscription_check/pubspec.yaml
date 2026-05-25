@@ -1,5 +1,5 @@
 name: subscription_check
-description: "A new Flutter project."
+description: "구독 지출과 해지 추천을 한눈에 관리하는 섭컷 SubCut."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

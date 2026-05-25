@@ -1,11 +1,11 @@
 {
-    "name": "subscription_check",
-    "short_name": "subscription_check",
+    "name": "섭컷 SubCut",
+    "short_name": "SubCut",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F3F4F6",
+    "theme_color": "#53B2FF",
+    "description": "구독 지출과 해지 추천을 한눈에 관리하는 섭컷 SubCut.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_brand.dart';
 import '../providers/subscription_provider.dart';
 import '../services/app_preferences.dart';
 import '../theme/app_theme.dart';
@@ -231,8 +232,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           _ActionRow(
                             icon: CupertinoIcons.doc_text_fill,
-                            title: '이용약관 및 데이터 활용 동의',
-                            subtitle: '사용자 데이터와 모델 학습 활용 안내',
+                            title: '이용약관 및 개인정보 안내',
+                            subtitle: '데이터 처리와 모델 추천 안내',
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const TermsScreen(),
@@ -279,7 +280,7 @@ class _Header extends StatelessWidget {
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
-            letterSpacing: -0.34,
+            letterSpacing: 0,
           ),
         ),
       ),
@@ -305,79 +306,86 @@ class _ProfileCard extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 26),
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.neutralSoft,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    alignment: Alignment.center,
-                    child: Transform.rotate(
-                      angle: -0.785,
-                      child: const Icon(
-                        Icons.content_cut,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: SizedBox(
+            height: 154,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 22),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.neutralSoft,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        const Text(
-                          'SubCut',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                        const Expanded(
+                          child: Text(
+                            AppBrand.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '$count개 구독 · 월 ${formatKRW(total)}원',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textTertiary,
+                        if (saveable > 0) ...[
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.dangerSoft,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${formatKRW(saveable)}원 절약 가능',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.danger,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                  ),
-                  if (saveable > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.dangerSoft,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${formatKRW(saveable)}원',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.danger,
-                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$count개 구독 · 월 ${formatKRW(total)}원',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                ],
+                    if (saveable > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '해지 후보 기준 월 ${formatKRW(saveable)}원까지 줄일 수 있어요',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -705,7 +713,7 @@ class _AppInfo extends StatelessWidget {
         child: const Padding(
           padding: EdgeInsets.fromLTRB(16, 18, 16, 0),
           child: Text(
-            'SubCut 1.0.0 · 프론트엔드 프로토타입',
+            '${AppBrand.displayName} 1.0.0 · 프론트엔드 프로토타입',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,

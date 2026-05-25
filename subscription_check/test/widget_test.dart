@@ -20,7 +20,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('SubCut'), findsOneWidget);
+    expect(find.text('섭컷 SubCut'), findsOneWidget);
     expect(find.text('홈'), findsOneWidget);
     expect(find.text('추천'), findsOneWidget);
     expect(find.text('일정'), findsOneWidget);
