@@ -12,16 +12,19 @@ CatBoost 추론 서버 + 피드백 수집 + 재학습 엔드포인트
 
 import os
 import json
+import csv
+import io
+import calendar
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 from catboost import CatBoostClassifier
-from flask import Flask, request, jsonify
+from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from db import init_db, session_scope, Prediction, AppSubscription
+from db import init_db, session_scope, Prediction, AppSetting, AppSubscription
 from retrain import (
     feature_engineer, run_retrain,
     CAT_COLS, NUM_COLS, USE_FREQ_MAP, RECENCY_MAP,
@@ -40,6 +43,7 @@ MODEL_PATH = os.path.join(SERVER_DIR, "model.cbm")
 STATS_PATH = os.path.join(SERVER_DIR, "stats.json")
 
 RETRAIN_TOKEN = os.environ.get("RETRAIN_TOKEN")  # 설정 시 /retrain 호출에 필요
+MODEL_CHURN_THRESHOLD = float(os.environ.get("MODEL_CHURN_THRESHOLD", 0.4))
 
 # 스케줄 재학습: 매일 RETRAIN_HOUR 시(UTC)에 실행 (기본 18 UTC = KST 새벽 3시)
 RETRAIN_HOUR = int(os.environ.get("RETRAIN_HOUR", 18))
@@ -122,8 +126,8 @@ def predict_and_log(raw: dict, session, device_id: str | None = None) -> dict:
         "use_frequency":         use_frequency,
         "last_use_recency":      raw.get("last_use_recency", "7-30d"),
         "perceived_necessity":   perceived_necessity,
-        "cost_burden":           int(raw["cost_burden"]) if "cost_burden" in raw else _estimate_cost_burden(monthly_cost),
-        "would_rebuy":           int(raw["would_rebuy"]) if "would_rebuy" in raw else _estimate_would_rebuy(freq_score, perceived_necessity),
+        "cost_burden":           int(raw["cost_burden"]) if raw.get("cost_burden") is not None else _estimate_cost_burden(monthly_cost),
+        "would_rebuy":           int(raw["would_rebuy"]) if raw.get("would_rebuy") is not None else _estimate_would_rebuy(freq_score, perceived_necessity),
         "replacement_available": int(raw.get("replacement_available", 0)),
         "billing_cycle":         int(raw.get("billing_cycle", 0)),
         "remaining_months":      float(raw.get("remaining_months", 0)),
@@ -136,12 +140,13 @@ def predict_and_log(raw: dict, session, device_id: str | None = None) -> dict:
     for c in CAT_COLS:
         X[c] = X[c].astype(str)
 
-    pred      = int(model.predict(X).ravel()[0])
-    proba     = model.predict_proba(X)[0]
+    proba = model.predict_proba(X)[0]
+    prob_churn = float(proba[0])
     prob_keep = float(proba[1])
+    threshold = float(dataset_stats.get("churn_threshold", MODEL_CHURN_THRESHOLD))
 
-    is_churn   = (pred == 0)
-    confidence = (1 - prob_keep) if is_churn else prob_keep
+    is_churn = prob_churn >= threshold
+    confidence = prob_churn if is_churn else prob_keep
 
     # DB 저장
     record = Prediction(
@@ -171,11 +176,92 @@ def _require_device_id() -> str:
     return device_id
 
 
+def _parse_optional_datetime(value):
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        return parsed
+    raise ValueError("expected ISO datetime string")
+
+
+def _coerce_subscription_payload(data: dict) -> dict:
+    payload = {k: v for k, v in data.items() if k in SUBSCRIPTION_WRITABLE_FIELDS}
+    for key in ("next_billing_at", "trial_ends_at", "discount_ends_at"):
+        if key in payload:
+            payload[key] = _parse_optional_datetime(payload[key])
+
+    if "billing_day" in payload and payload["billing_day"] is not None:
+        billing_day = int(payload["billing_day"])
+        if billing_day < 1 or billing_day > 31:
+            raise ValueError("billing_day must be between 1 and 31")
+        payload["billing_day"] = billing_day
+
+    if "renewal_notice_days" in payload and payload["renewal_notice_days"] is not None:
+        payload["renewal_notice_days"] = max(0, int(payload["renewal_notice_days"]))
+
+    return payload
+
+
+def _effective_monthly_cost(sub: AppSubscription) -> int:
+    return max(0, int(sub.monthly_cost or 0) - int(sub.discount_amount or 0))
+
+
+def _subscription_prediction_payload(sub: AppSubscription) -> dict:
+    return {
+        "id": str(sub.id),
+        "subscription_type": sub.subscription_type,
+        "monthly_cost": sub.monthly_cost,
+        "use_frequency": sub.use_frequency,
+        "last_use_recency": sub.last_use_recency,
+        "perceived_necessity": sub.perceived_necessity,
+        "cost_burden": sub.cost_burden,
+        "would_rebuy": sub.would_rebuy,
+        "replacement_available": 1 if sub.replacement_available else 0,
+        "billing_cycle": 1 if sub.is_annual else 0,
+        "remaining_months": sub.remaining_months or 0,
+        "discount_amount": sub.discount_amount or 0,
+    }
+
+
+def _is_in_month(value: datetime | None, year: int, month: int) -> bool:
+    return value is not None and value.year == year and value.month == month
+
+
+def _billing_datetime_for_month(sub: AppSubscription, year: int, month: int):
+    if _is_in_month(sub.next_billing_at, year, month):
+        return sub.next_billing_at
+    if not sub.billing_day:
+        return None
+    day = min(int(sub.billing_day), calendar.monthrange(year, month)[1])
+    return datetime(year, month, day)
+
+
+def _subscription_event(sub: AppSubscription, scheduled_at: datetime, event_type: str):
+    return {
+        "id": f"{event_type}-{sub.id}-{scheduled_at.date().isoformat()}",
+        "subscription_id": str(sub.id),
+        "name": sub.name,
+        "emoji": sub.emoji,
+        "amount": _effective_monthly_cost(sub),
+        "event_type": event_type,
+        "scheduled_at": scheduled_at.isoformat(),
+        "renewal_notice_days": sub.renewal_notice_days,
+    }
+
+
 # ── 구독 CRUD 엔드포인트 ─────────────────────────────────────────────────
 SUBSCRIPTION_WRITABLE_FIELDS = {
     "name", "emoji", "subscription_type", "monthly_cost", "use_frequency",
     "last_use_recency", "perceived_necessity", "cost_burden", "would_rebuy",
     "replacement_available", "is_annual", "remaining_months", "discount_amount",
+    "billing_day", "next_billing_at", "trial_ends_at", "discount_ends_at",
+    "renewal_notice_days",
 }
 
 
@@ -188,7 +274,10 @@ def list_subscriptions():
     with session_scope() as session:
         rows = (
             session.query(AppSubscription)
-            .filter(AppSubscription.device_id == device_id)
+            .filter(
+                AppSubscription.device_id == device_id,
+                AppSubscription.archived_at.is_(None),
+            )
             .order_by(AppSubscription.created_at.asc())
             .all()
         )
@@ -202,7 +291,10 @@ def create_subscription():
         return jsonify({"error": "X-Device-Id header required"}), 400
 
     data = request.get_json(silent=True) or {}
-    payload = {k: v for k, v in data.items() if k in SUBSCRIPTION_WRITABLE_FIELDS}
+    try:
+        payload = _coerce_subscription_payload(data)
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": str(e)}), 400
 
     required = {"name", "subscription_type", "monthly_cost",
                 "use_frequency", "last_use_recency", "perceived_necessity"}
@@ -225,7 +317,10 @@ def update_subscription(sub_id: int):
         return jsonify({"error": "X-Device-Id header required"}), 400
 
     data = request.get_json(silent=True) or {}
-    updates = {k: v for k, v in data.items() if k in SUBSCRIPTION_WRITABLE_FIELDS}
+    try:
+        updates = _coerce_subscription_payload(data)
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": str(e)}), 400
     if not updates:
         return jsonify({"error": "no updatable fields"}), 400
 
@@ -233,7 +328,8 @@ def update_subscription(sub_id: int):
         row = (
             session.query(AppSubscription)
             .filter(AppSubscription.id == sub_id,
-                    AppSubscription.device_id == device_id)
+                    AppSubscription.device_id == device_id,
+                    AppSubscription.archived_at.is_(None))
             .one_or_none()
         )
         if row is None:
@@ -255,13 +351,284 @@ def delete_subscription(sub_id: int):
         row = (
             session.query(AppSubscription)
             .filter(AppSubscription.id == sub_id,
-                    AppSubscription.device_id == device_id)
+                    AppSubscription.device_id == device_id,
+                    AppSubscription.archived_at.is_(None))
             .one_or_none()
         )
         if row is None:
             return jsonify({"error": "subscription not found"}), 404
         session.delete(row)
     return jsonify({"ok": True})
+
+
+@app.route("/archived_subscriptions", methods=["GET"])
+def archived_subscriptions():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        rows = (
+            session.query(AppSubscription)
+            .filter(
+                AppSubscription.device_id == device_id,
+                AppSubscription.archived_at.isnot(None),
+            )
+            .order_by(AppSubscription.archived_at.desc())
+            .all()
+        )
+        return jsonify([r.to_dict() for r in rows])
+
+
+@app.route("/subscriptions/<int:sub_id>/archive", methods=["POST"])
+def archive_subscription(sub_id: int):
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        row = (
+            session.query(AppSubscription)
+            .filter(AppSubscription.id == sub_id,
+                    AppSubscription.device_id == device_id)
+            .one_or_none()
+        )
+        if row is None:
+            return jsonify({"error": "subscription not found"}), 404
+        row.archived_at = datetime.utcnow()
+        session.flush()
+        result = row.to_dict()
+    return jsonify(result)
+
+
+@app.route("/subscriptions/<int:sub_id>/restore", methods=["POST"])
+def restore_subscription(sub_id: int):
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        row = (
+            session.query(AppSubscription)
+            .filter(AppSubscription.id == sub_id,
+                    AppSubscription.device_id == device_id)
+            .one_or_none()
+        )
+        if row is None:
+            return jsonify({"error": "subscription not found"}), 404
+        row.archived_at = None
+        session.flush()
+        result = row.to_dict()
+    return jsonify(result)
+
+
+@app.route("/billing_events", methods=["GET"])
+def billing_events():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    try:
+        year = int(request.args.get("year", datetime.utcnow().year))
+        month = int(request.args.get("month", datetime.utcnow().month))
+        if month < 1 or month > 12:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "year and month must be valid integers"}), 400
+
+    with session_scope() as session:
+        rows = (
+            session.query(AppSubscription)
+            .filter(
+                AppSubscription.device_id == device_id,
+                AppSubscription.archived_at.is_(None),
+            )
+            .order_by(AppSubscription.created_at.asc())
+            .all()
+        )
+
+        events = []
+        for sub in rows:
+            scheduled_at = _billing_datetime_for_month(sub, year, month)
+            if scheduled_at is not None:
+                event_type = "annual_renewal" if sub.is_annual else "monthly_payment"
+                events.append(_subscription_event(sub, scheduled_at, event_type))
+            if _is_in_month(sub.trial_ends_at, year, month):
+                events.append(_subscription_event(sub, sub.trial_ends_at, "trial_ends"))
+            if _is_in_month(sub.discount_ends_at, year, month):
+                events.append(_subscription_event(sub, sub.discount_ends_at, "discount_ends"))
+
+    events.sort(key=lambda item: item["scheduled_at"])
+    return jsonify(events)
+
+
+SETTING_WRITABLE_FIELDS = {
+    "billing_alert_enabled", "weekly_report_enabled", "app_lock_enabled",
+    "biometric_lock_enabled", "terms_accepted_at", "default_notice_days",
+}
+
+
+def _settings_payload(data: dict) -> dict:
+    payload = {k: v for k, v in data.items() if k in SETTING_WRITABLE_FIELDS}
+    if "terms_accepted_at" in payload:
+        payload["terms_accepted_at"] = _parse_optional_datetime(
+            payload["terms_accepted_at"])
+    if "default_notice_days" in payload and payload["default_notice_days"] is not None:
+        payload["default_notice_days"] = max(0, int(payload["default_notice_days"]))
+    return payload
+
+
+def _get_or_create_settings(session, device_id: str) -> AppSetting:
+    row = (
+        session.query(AppSetting)
+        .filter(AppSetting.device_id == device_id)
+        .one_or_none()
+    )
+    if row is None:
+        row = AppSetting(device_id=device_id)
+        session.add(row)
+        session.flush()
+    return row
+
+
+@app.route("/settings", methods=["GET"])
+def get_settings():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        row = _get_or_create_settings(session, device_id)
+        result = row.to_dict()
+    return jsonify(result)
+
+
+@app.route("/settings", methods=["PATCH"])
+def patch_settings():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    data = request.get_json(silent=True) or {}
+    try:
+        updates = _settings_payload(data)
+    except (TypeError, ValueError) as e:
+        return jsonify({"error": str(e)}), 400
+    if not updates:
+        return jsonify({"error": "no updatable fields"}), 400
+
+    with session_scope() as session:
+        row = _get_or_create_settings(session, device_id)
+        for key, value in updates.items():
+            setattr(row, key, value)
+        session.flush()
+        result = row.to_dict()
+    return jsonify(result)
+
+
+@app.route("/export/subscriptions.json", methods=["GET"])
+def export_subscriptions_json():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        rows = (
+            session.query(AppSubscription)
+            .filter(AppSubscription.device_id == device_id)
+            .order_by(AppSubscription.created_at.asc())
+            .all()
+        )
+        return jsonify([r.to_dict() for r in rows])
+
+
+@app.route("/export/subscriptions.csv", methods=["GET"])
+def export_subscriptions_csv():
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        rows = (
+            session.query(AppSubscription)
+            .filter(AppSubscription.device_id == device_id)
+            .order_by(AppSubscription.created_at.asc())
+            .all()
+        )
+        output = io.StringIO()
+        fieldnames = [
+            "id", "name", "emoji", "subscription_type", "monthly_cost",
+            "effective_monthly_cost", "use_frequency", "last_use_recency",
+            "perceived_necessity", "replacement_available", "is_annual",
+            "billing_day", "next_billing_at", "trial_ends_at",
+            "discount_ends_at", "renewal_notice_days", "archived_at",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            data = row.to_dict()
+            data["effective_monthly_cost"] = _effective_monthly_cost(row)
+            writer.writerow({key: data.get(key) for key in fieldnames})
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=subscriptions.csv"},
+    )
+
+
+@app.route("/recommendations", methods=["GET"])
+def recommendations():
+    if model is None:
+        return jsonify({"error": "Model not loaded"}), 503
+
+    device_id = _require_device_id()
+    if not device_id:
+        return jsonify({"error": "X-Device-Id header required"}), 400
+
+    with session_scope() as session:
+        rows = (
+            session.query(AppSubscription)
+            .filter(
+                AppSubscription.device_id == device_id,
+                AppSubscription.archived_at.is_(None),
+            )
+            .order_by(AppSubscription.created_at.asc())
+            .all()
+        )
+
+        items = []
+        for sub in rows:
+            result = predict_and_log(
+                _subscription_prediction_payload(sub),
+                session,
+                device_id=device_id,
+            )
+            items.append({
+                "subscription": sub.to_dict(),
+                "prediction_id": result["prediction_id"],
+                "is_churn_candidate": result["is_churn_candidate"],
+                "confidence": result["confidence"],
+                "reason": result["reason"],
+                "estimated_monthly_savings": (
+                    _effective_monthly_cost(sub)
+                    if result["is_churn_candidate"] else 0
+                ),
+                "recommended_action": (
+                    "cancel" if result["is_churn_candidate"] else "keep"
+                ),
+            })
+
+    items.sort(
+        key=lambda item: (
+            0 if item["is_churn_candidate"] else 1,
+            -item["confidence"],
+            -item["estimated_monthly_savings"],
+        )
+    )
+    for index, item in enumerate(items, start=1):
+        item["rank"] = index
+    return jsonify(items)
 
 
 # ── 엔드포인트 ────────────────────────────────────────────────────────────

@@ -126,6 +126,24 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
     });
   }
 
+  void _refreshForm() => setState(() {});
+
+  void _setActiveTab(String value) =>
+      setState(() => _activeTab = value);
+
+  void _setEditingPreset(bool value) =>
+      setState(() => _editingPreset = value);
+
+  void _setType(String value) => setState(() => _type = value);
+
+  void _setFrequency(UseFrequency value) =>
+      setState(() => _freq = value);
+
+  void _setRecency(LastUseRecency value) =>
+      setState(() => _recency = value);
+
+  void _setNecessity(int value) => setState(() => _necessity = value);
+
   bool get _canGoNext {
     if (_step == 0) {
       return _nameCtrl.text.trim().isNotEmpty &&
@@ -447,12 +465,12 @@ class _Step1 extends StatelessWidget {
           const SizedBox(height: 18),
           _SearchField(
             controller: state._searchCtrl,
-            onChanged: (_) => state.setState(() {}),
+            onChanged: (_) => state._refreshForm(),
           ),
           const SizedBox(height: 12),
           _CategoryTabsBar(
             active: state._activeTab,
-            onSelect: (v) => state.setState(() => state._activeTab = v),
+            onSelect: state._setActiveTab,
           ),
           const SizedBox(height: 12),
           _PresetGrid(
@@ -472,8 +490,7 @@ class _Step1 extends StatelessWidget {
                     name: state._nameCtrl.text,
                     type: state._type,
                     cost: int.tryParse(state._costCtrl.text) ?? 0,
-                    onEdit: () =>
-                        state.setState(() => state._editingPreset = true),
+                    onEdit: () => state._setEditingPreset(true),
                   )
                 : _ManualForm(
                     key: ValueKey(state._selectedPreset == null
@@ -484,11 +501,10 @@ class _Step1 extends StatelessWidget {
                     nameCtrl: state._nameCtrl,
                     costCtrl: state._costCtrl,
                     type: state._type,
-                    onTypeChanged: (v) => state.setState(() => state._type = v),
+                    onTypeChanged: state._setType,
                     showConfirm: state._editingPreset,
-                    onConfirm: () =>
-                        state.setState(() => state._editingPreset = false),
-                    onChanged: () => state.setState(() {}),
+                    onConfirm: () => state._setEditingPreset(false),
+                    onChanged: state._refreshForm,
                   ),
           ),
         ],
@@ -1107,14 +1123,14 @@ class _Step2 extends StatelessWidget {
           const SizedBox(height: 10),
           _FreqGrid(
             value: state._freq,
-            onSelect: (v) => state.setState(() => state._freq = v),
+            onSelect: state._setFrequency,
           ),
           const SizedBox(height: 24),
           const _Step2Label('마지막 사용'),
           const SizedBox(height: 10),
           _RecencyRow(
             value: state._recency,
-            onSelect: (v) => state.setState(() => state._recency = v),
+            onSelect: state._setRecency,
           ),
           const SizedBox(height: 24),
           Row(
@@ -1134,7 +1150,7 @@ class _Step2 extends StatelessWidget {
           const SizedBox(height: 10),
           _NecessityRow(
             value: state._necessity,
-            onSelect: (v) => state.setState(() => state._necessity = v),
+            onSelect: state._setNecessity,
           ),
           const SizedBox(height: 8),
           const Padding(

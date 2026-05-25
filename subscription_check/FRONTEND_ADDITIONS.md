@@ -27,13 +27,13 @@
 - 결제일 선택, 날짜별 결제 목록, 월/연도 선택은 모두 프론트엔드 로컬 상태로 동작합니다.
 - 앱 잠금 설정, PIN, 생체인증 사용 여부, 약관 동의 상태는 `SharedPreferences`에 저장됩니다.
 - Face ID/Touch ID는 `local_auth` 플러그인을 통해 실제 기기 인증을 호출합니다.
-- 데이터 내보내기와 보관함은 백엔드 연동 전 자리 표시 UI로 구성했습니다.
+- 데이터 내보내기와 보관함 UI는 아직 프론트에서 서버 API를 호출하지 않지만, 서버 엔드포인트는 준비되어 있습니다.
 
-## 필요한 백엔드/API
+## 백엔드/API 연동 상태
 
 ### 1. 결제 일정 필드
 
-구독 생성/수정/조회 API에 아래 필드가 필요합니다.
+구독 생성/수정/조회 API는 아래 필드를 지원합니다.
 
 - `billing_day`: 매월 결제일
 - `next_billing_at`: 다음 결제 예정일
@@ -43,7 +43,7 @@
 
 ### 2. 캘린더 API
 
-월별 결제 이벤트를 직접 조회하는 API가 있으면 프론트 계산을 제거할 수 있습니다.
+월별 결제 이벤트를 직접 조회하는 API가 준비되어 있습니다.
 
 ```http
 GET /billing_events?year=2026&month=5
@@ -67,7 +67,7 @@ GET /billing_events?year=2026&month=5
 
 ### 3. 설정 저장 API
 
-설정 탭의 토글을 영구 저장하려면 기기별 설정 API가 필요합니다.
+설정 탭의 토글을 영구 저장할 기기별 설정 API가 준비되어 있습니다.
 
 ```http
 GET /settings
@@ -85,7 +85,7 @@ PATCH /settings
 
 ### 4. 데이터 내보내기 API
 
-CSV 또는 JSON 내보내기용 엔드포인트가 필요합니다.
+CSV 또는 JSON 내보내기용 엔드포인트가 준비되어 있습니다.
 
 ```http
 GET /export/subscriptions.csv
@@ -94,7 +94,7 @@ GET /export/subscriptions.json
 
 ### 5. 삭제/해지 보관함 API
 
-해지한 구독과 삭제한 구독을 별도 관리하려면 soft delete 또는 archive 모델이 필요합니다.
+해지한 구독과 삭제한 구독을 별도 관리하는 archive 엔드포인트가 준비되어 있습니다.
 
 ```http
 GET /archived_subscriptions
@@ -104,10 +104,10 @@ POST /subscriptions/:id/restore
 
 ### 6. 해지 추천 개선 API
 
-현재는 예측 결과만 표시합니다. 추천 화면을 더 안정적으로 만들려면 추천 전용 API가 좋습니다.
+추천 순위, 설명, 예상 절감액, 권장 액션을 반환하는 추천 전용 API가 준비되어 있습니다.
 
 ```http
 GET /recommendations
 ```
 
-응답에는 추천 순위, 설명, 예상 절감액, 권장 액션을 포함하는 것이 좋습니다.
+응답에는 추천 순위, 설명, 예상 절감액, 권장 액션이 포함됩니다.

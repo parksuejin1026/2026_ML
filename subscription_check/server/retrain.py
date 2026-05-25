@@ -30,6 +30,18 @@ from db import session_scope, Prediction, init_db
 SERVER_DIR = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(SERVER_DIR, "model.cbm")
 STATS_PATH = os.path.join(SERVER_DIR, "stats.json")
+CHURN_THRESHOLD = 0.4
+MODEL_SOURCE = "ML_Submission3.ipynb"
+
+SUBMISSION3_MODEL_PARAMS = {
+    "iterations": 432,
+    "learning_rate": 0.018,
+    "depth": 5,
+    "loss_function": "Logloss",
+    "random_seed": 42,
+    "allow_writing_files": False,
+    "verbose": 200,
+}
 
 
 def _resolve_csv_path() -> str:
@@ -145,6 +157,9 @@ def run_retrain() -> dict:
         "emc_mean":            float(df["effective_monthly_cost"].mean()),
         "emc_std":             float(df["effective_monthly_cost"].std(ddof=0)),
         "high_cost_threshold": float(df["effective_monthly_cost"].quantile(0.75)),
+        "churn_threshold":     CHURN_THRESHOLD,
+        "model_source":        MODEL_SOURCE,
+        "model_params":        SUBMISSION3_MODEL_PARAMS,
     }
 
     df = feature_engineer(df, stats)
@@ -156,21 +171,7 @@ def run_retrain() -> dict:
         X[c] = X[c].astype(str)
 
     cat_feature_idx = [X.columns.get_loc(c) for c in CAT_COLS]
-    neg, pos = np.bincount(y)
-
-    model = CatBoostClassifier(
-        iterations=1000,
-        learning_rate=0.018051353424731104,
-        depth=7,
-        l2_leaf_reg=3.937323054801693,
-        bagging_temperature=0.4970853936108525,
-        random_strength=2.23973725904685,
-        loss_function="Logloss",
-        eval_metric="AUC",
-        class_weights=[1.0, neg / pos],
-        random_seed=42,
-        verbose=200,
-    )
+    model = CatBoostClassifier(**SUBMISSION3_MODEL_PARAMS)
     print(f"[RETRAIN] Training CatBoost on {len(X)} samples...")
     model.fit(X, y, cat_features=cat_feature_idx)
 

@@ -64,6 +64,12 @@ class AppSubscription(Base):
     is_annual             = Column(Boolean, default=False)
     remaining_months      = Column(Float, default=0.0)
     discount_amount       = Column(Integer, default=0)
+    billing_day           = Column(Integer, nullable=True)
+    next_billing_at       = Column(DateTime, nullable=True)
+    trial_ends_at         = Column(DateTime, nullable=True)
+    discount_ends_at      = Column(DateTime, nullable=True)
+    renewal_notice_days   = Column(Integer, default=3)
+    archived_at           = Column(DateTime, nullable=True, index=True)
 
     # ── 사용자 피드백 상태 (영구 저장) ──
     # True = 유지, False = 해지, None = 피드백 없음
@@ -86,9 +92,51 @@ class AppSubscription(Base):
             "is_annual":            bool(self.is_annual),
             "remaining_months":     self.remaining_months,
             "discount_amount":      self.discount_amount,
+            "billing_day":          self.billing_day,
+            "next_billing_at":      self.next_billing_at.isoformat()
+                                      if self.next_billing_at else None,
+            "trial_ends_at":        self.trial_ends_at.isoformat()
+                                      if self.trial_ends_at else None,
+            "discount_ends_at":     self.discount_ends_at.isoformat()
+                                      if self.discount_ends_at else None,
+            "renewal_notice_days":  self.renewal_notice_days,
+            "archived_at":          self.archived_at.isoformat()
+                                      if self.archived_at else None,
             "last_feedback_kept":   self.last_feedback_kept,
             "last_feedback_at":     self.last_feedback_at.isoformat()
                                       if self.last_feedback_at else None,
+        }
+
+
+class AppSetting(Base):
+    """
+    기기별 앱 설정. 앱 잠금 자체는 클라이언트 로컬 보안 기능이지만,
+    서버 동기화가 필요한 토글/동의 상태를 저장할 수 있다.
+    """
+    __tablename__ = "app_settings"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    device_id  = Column(String(128), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow, nullable=False)
+
+    billing_alert_enabled  = Column(Boolean, default=True, nullable=False)
+    weekly_report_enabled  = Column(Boolean, default=False, nullable=False)
+    app_lock_enabled       = Column(Boolean, default=False, nullable=False)
+    biometric_lock_enabled = Column(Boolean, default=False, nullable=False)
+    terms_accepted_at      = Column(DateTime, nullable=True)
+    default_notice_days    = Column(Integer, default=3, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "billing_alert_enabled":  bool(self.billing_alert_enabled),
+            "weekly_report_enabled":  bool(self.weekly_report_enabled),
+            "app_lock_enabled":       bool(self.app_lock_enabled),
+            "biometric_lock_enabled": bool(self.biometric_lock_enabled),
+            "terms_accepted_at":      self.terms_accepted_at.isoformat()
+                                      if self.terms_accepted_at else None,
+            "default_notice_days":    self.default_notice_days,
         }
 
 
@@ -139,6 +187,18 @@ def _apply_lightweight_migrations() -> None:
                 conn, "app_subscriptions", "last_feedback_kept", "BOOLEAN")
             _sqlite_add_column_if_missing(
                 conn, "app_subscriptions", "last_feedback_at", "DATETIME")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "billing_day", "INTEGER")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "next_billing_at", "DATETIME")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "trial_ends_at", "DATETIME")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "discount_ends_at", "DATETIME")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "renewal_notice_days", "INTEGER")
+            _sqlite_add_column_if_missing(
+                conn, "app_subscriptions", "archived_at", "DATETIME")
         else:
             conn.execute(text(
                 "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS device_id VARCHAR(128)"
@@ -153,6 +213,30 @@ def _apply_lightweight_migrations() -> None:
             conn.execute(text(
                 "ALTER TABLE app_subscriptions "
                 "ADD COLUMN IF NOT EXISTS last_feedback_at TIMESTAMP"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS billing_day INTEGER"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS next_billing_at TIMESTAMP"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS discount_ends_at TIMESTAMP"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS renewal_notice_days INTEGER"
+            ))
+            conn.execute(text(
+                "ALTER TABLE app_subscriptions "
+                "ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP"
             ))
 
 

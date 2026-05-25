@@ -116,6 +116,60 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
     if (confirmed == true) widget.onDelete();
   }
 
+  bool get _hasUnsavedChanges {
+    if (!_editing) return false;
+    final s = widget.subscription;
+    final remaining = double.tryParse(_remainingCtrl.text.trim()) ?? 0;
+    final discount = int.tryParse(_discountCtrl.text.trim()) ?? 0;
+    return _replacement != s.replacementAvailable ||
+        _isAnnual != s.isAnnual ||
+        remaining != s.remainingMonths ||
+        discount != s.discountAmount;
+  }
+
+  Future<void> _onHeaderTap() async {
+    if (_expanded && _hasUnsavedChanges) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '변경사항이 있어요',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          content: const Text(
+            '저장하지 않고 닫으면 변경사항이 사라져요.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('계속 편집'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                '닫기',
+                style: TextStyle(color: AppColors.danger),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (discard == true) {
+        setState(() {
+          _resetEditState();
+          _editing = false;
+          _expanded = false;
+        });
+      }
+    } else {
+      setState(() => _expanded = !_expanded);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final sub = widget.subscription;
@@ -123,7 +177,7 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
     final effective = sub.effectiveMonthlyCost;
 
     return InkWell(
-      onTap: () => setState(() => _expanded = !_expanded),
+      onTap: _onHeaderTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
@@ -155,6 +209,17 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
                           if (result != null) ...[
                             const SizedBox(width: 8),
                             _StatusBadge(isChurn: result.isChurnCandidate),
+                          ],
+                          if (_hasUnsavedChanges) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                           ],
                         ],
                       ),
