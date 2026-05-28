@@ -58,7 +58,6 @@ class _MainShellState extends State<MainShell> {
       extendBody: true,
       body: PageView(
         controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
         onPageChanged: (value) => setState(() => _index = value),
         children: _pages,
       ),
