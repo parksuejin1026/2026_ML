@@ -177,12 +177,16 @@ Future<void> submitFeedback({
 
 class SavingsHistoryItem {
   final int predictionId;
+  final String? subscriptionName;
+  final String? emoji;
   final String subscriptionType;
   final int effectiveMonthlyCost;
   final DateTime? feedbackAt;
 
   SavingsHistoryItem({
     required this.predictionId,
+    this.subscriptionName,
+    this.emoji,
     required this.subscriptionType,
     required this.effectiveMonthlyCost,
     required this.feedbackAt,
@@ -192,6 +196,8 @@ class SavingsHistoryItem {
     final fb = json['feedback_at'] as String?;
     return SavingsHistoryItem(
       predictionId: (json['prediction_id'] as num).toInt(),
+      subscriptionName: json['subscription_name'] as String?,
+      emoji: json['emoji'] as String?,
       subscriptionType: json['subscription_type'] as String? ?? '',
       effectiveMonthlyCost: (json['effective_monthly'] as num?)?.toInt() ?? 0,
       feedbackAt: fb != null ? DateTime.tryParse(fb) : null,
@@ -267,6 +273,7 @@ final _mockSubscriptions = <Subscription>[
     lastUseRecency: LastUseRecency.between1and7d,
     perceivedNecessity: 3,
     replacementAvailable: true,
+    billingDay: 12,
     emoji: '🎬',
   ),
   Subscription(
@@ -278,6 +285,7 @@ final _mockSubscriptions = <Subscription>[
     lastUseRecency: LastUseRecency.under1d,
     perceivedNecessity: 5,
     replacementAvailable: false,
+    billingDay: 8,
     emoji: '🎧',
   ),
   Subscription(
@@ -289,6 +297,7 @@ final _mockSubscriptions = <Subscription>[
     lastUseRecency: LastUseRecency.under1d,
     perceivedNecessity: 4,
     replacementAvailable: false,
+    billingDay: 20,
     emoji: '☁️',
   ),
   Subscription(
@@ -300,6 +309,7 @@ final _mockSubscriptions = <Subscription>[
     lastUseRecency: LastUseRecency.over30d,
     perceivedNecessity: 2,
     replacementAvailable: true,
+    billingDay: 27,
     emoji: '📰',
   ),
 ];
@@ -320,8 +330,7 @@ Map<String, ChurnResult> _mockPredictBatch(List<Subscription> subscriptions) {
 }
 
 ChurnResult _mockPrediction(Subscription subscription) {
-  final lowUsage =
-      subscription.useFrequency == UseFrequency.rare ||
+  final lowUsage = subscription.useFrequency == UseFrequency.rare ||
       subscription.lastUseRecency == LastUseRecency.over30d;
   final replaceable = subscription.replacementAvailable;
   final expensive = subscription.effectiveMonthlyCost >= 12000;
@@ -367,6 +376,8 @@ SavingsSummary _mockSavingsSummary() {
       for (var i = 0; i < cancelled.length; i++)
         SavingsHistoryItem(
           predictionId: 3000 + i,
+          subscriptionName: cancelled[i].name,
+          emoji: cancelled[i].emoji,
           subscriptionType: cancelled[i].type,
           effectiveMonthlyCost: cancelled[i].effectiveMonthlyCost,
           feedbackAt: cancelled[i].lastFeedbackAt,

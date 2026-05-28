@@ -76,6 +76,7 @@ class PinKeypad extends StatelessWidget {
             _IconKeyButton(
               enabled: showBiometric,
               onTap: onBiometric,
+              semanticsLabel: '생체인증',
               child: BiometricIcon(
                 kind: biometricKind,
                 size: 25,
@@ -88,6 +89,7 @@ class PinKeypad extends StatelessWidget {
             _IconKeyButton(
               enabled: true,
               onTap: onBackspace,
+              semanticsLabel: '한 글자 지우기',
               child: const Icon(CupertinoIcons.delete_left),
             ),
           ],
@@ -152,26 +154,30 @@ class _KeyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 72,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+    return Semantics(
+      button: true,
+      label: '$label 입력',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Container(
+          width: 72,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ),
@@ -183,32 +189,39 @@ class _IconKeyButton extends StatelessWidget {
   final Widget child;
   final bool enabled;
   final VoidCallback? onTap;
+  final String semanticsLabel;
 
   const _IconKeyButton({
     required this.child,
     required this.enabled,
+    required this.semanticsLabel,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled
-          ? () {
-              HapticFeedback.selectionClick();
-              onTap?.call();
-            }
-          : null,
-      child: Container(
-        width: 72,
-        height: 56,
-        alignment: Alignment.center,
-        child: IconTheme(
-          data: IconThemeData(
-            size: 25,
-            color: enabled ? AppColors.textSecondary : Colors.transparent,
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: semanticsLabel,
+      child: GestureDetector(
+        onTap: enabled
+            ? () {
+                HapticFeedback.selectionClick();
+                onTap?.call();
+              }
+            : null,
+        child: Container(
+          width: 72,
+          height: 56,
+          alignment: Alignment.center,
+          child: IconTheme(
+            data: IconThemeData(
+              size: 25,
+              color: enabled ? AppColors.textSecondary : Colors.transparent,
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );

@@ -152,6 +152,9 @@ class Prediction(Base):
     device_id  = Column(String(128), nullable=True, index=True)
 
     # ── 입력 피처 (모델 학습에 사용되는 원본 컬럼) ──
+    subscription_id       = Column(Integer, nullable=True)
+    subscription_name     = Column(String(100), nullable=True)
+    emoji                 = Column(String(20), nullable=True)
     subscription_type     = Column(String(50))
     monthly_cost          = Column(Integer)
     use_frequency         = Column(String(20))
@@ -184,6 +187,12 @@ def _apply_lightweight_migrations() -> None:
             _sqlite_add_column_if_missing(
                 conn, "predictions", "device_id", "VARCHAR(128)")
             _sqlite_add_column_if_missing(
+                conn, "predictions", "subscription_id", "INTEGER")
+            _sqlite_add_column_if_missing(
+                conn, "predictions", "subscription_name", "VARCHAR(100)")
+            _sqlite_add_column_if_missing(
+                conn, "predictions", "emoji", "VARCHAR(20)")
+            _sqlite_add_column_if_missing(
                 conn, "app_subscriptions", "last_feedback_kept", "BOOLEAN")
             _sqlite_add_column_if_missing(
                 conn, "app_subscriptions", "last_feedback_at", "DATETIME")
@@ -205,6 +214,18 @@ def _apply_lightweight_migrations() -> None:
             ))
             conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_predictions_device_id ON predictions(device_id)"
+            ))
+            conn.execute(text(
+                "ALTER TABLE predictions "
+                "ADD COLUMN IF NOT EXISTS subscription_id INTEGER"
+            ))
+            conn.execute(text(
+                "ALTER TABLE predictions "
+                "ADD COLUMN IF NOT EXISTS subscription_name VARCHAR(100)"
+            ))
+            conn.execute(text(
+                "ALTER TABLE predictions "
+                "ADD COLUMN IF NOT EXISTS emoji VARCHAR(20)"
             ))
             conn.execute(text(
                 "ALTER TABLE app_subscriptions "

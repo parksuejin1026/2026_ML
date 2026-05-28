@@ -11,16 +11,6 @@ import '../widgets/app_top_bar.dart';
 
 const double _maxContentWidth = 460;
 
-const _categoryLabels = {
-  'Video': '영상',
-  'Music': '음악',
-  'Cloud': '생활',
-  'Education': '교육',
-  'Game': '게임',
-  'Fitness': '운동',
-  'News': '뉴스',
-};
-
 const _categoryColors = {
   'Video': Color(0xFF53B2FF),
   'Music': Color(0xFF7C5CFA),
@@ -33,7 +23,6 @@ const _categoryColors = {
 
 const Color _etcColor = Color(0xFFB0B8C1);
 
-String _categoryLabel(String key) => _categoryLabels[key] ?? key;
 Color _categoryColor(String key) => _categoryColors[key] ?? _etcColor;
 
 class AnalyticsScreen extends StatefulWidget {
@@ -461,7 +450,7 @@ class _LegendRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            '${_categoryLabel(item.key)} · ${item.count}개',
+            '${subscriptionTypeLabel(item.key)} · ${item.count}개',
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -585,14 +574,16 @@ class _HistoryRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
-            child: Transform.rotate(
-              angle: -0.785,
-              child: Icon(
-                Icons.content_cut,
-                size: 14,
-                color: _categoryColor(item.subscriptionType),
-              ),
-            ),
+            child: item.emoji != null
+                ? Text(item.emoji!, style: const TextStyle(fontSize: 16))
+                : Transform.rotate(
+                    angle: -0.785,
+                    child: Icon(
+                      Icons.content_cut,
+                      size: 14,
+                      color: _categoryColor(item.subscriptionType),
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -600,7 +591,8 @@ class _HistoryRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _categoryLabel(item.subscriptionType),
+                  item.subscriptionName ??
+                      subscriptionTypeLabel(item.subscriptionType),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

@@ -58,6 +58,7 @@ class _MainShellState extends State<MainShell> {
       extendBody: true,
       body: PageView(
         controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
         onPageChanged: (value) => setState(() => _index = value),
         children: _pages,
       ),
@@ -157,39 +158,44 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      key: ValueKey('tab-${item.label}'),
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.textPrimary : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              item.icon,
-              size: 19,
-              color: selected ? Colors.white : AppColors.textTertiary,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              item.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${item.label} 탭',
+      child: GestureDetector(
+        key: ValueKey('tab-${item.label}'),
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.textPrimary : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                item.icon,
+                size: 19,
                 color: selected ? Colors.white : AppColors.textTertiary,
-                height: 1.0,
               ),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : AppColors.textTertiary,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

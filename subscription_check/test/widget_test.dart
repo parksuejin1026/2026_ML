@@ -32,6 +32,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(find.text('알림'), findsOneWidget);
+    expect(find.text('앱 데이터'), findsOneWidget);
   });
 }

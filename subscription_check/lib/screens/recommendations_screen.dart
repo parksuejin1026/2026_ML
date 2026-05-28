@@ -328,7 +328,7 @@ class _CandidateCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _DecisionButton(
-                  label: '유지',
+                  label: '유지했어요',
                   icon: CupertinoIcons.check_mark,
                   selected: feedback == true,
                   color: AppColors.success,
@@ -338,7 +338,7 @@ class _CandidateCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _DecisionButton(
-                  label: '해지함',
+                  label: '직접 해지',
                   icon: CupertinoIcons.scissors,
                   selected: feedback == false,
                   color: AppColors.danger,
@@ -394,31 +394,36 @@ class _DecisionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 42,
-        decoration: BoxDecoration(
-          color: selected ? color : AppColors.neutralSoft,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: selected ? color : AppColors.border),
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 15, color: selected ? Colors.white : color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: selected ? Colors.white : color,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 42,
+          decoration: BoxDecoration(
+            color: selected ? color : AppColors.neutralSoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? color : AppColors.border),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: selected ? Colors.white : color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: selected ? Colors.white : color,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -512,26 +517,31 @@ class _CenteredCard extends StatelessWidget {
                 ),
                 if (actionLabel != null) ...[
                   const SizedBox(height: 18),
-                  GestureDetector(
-                    onTap: onAction,
-                    child: Container(
-                      height: 42,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      decoration: BoxDecoration(
-                        color: onAction == null
-                            ? AppColors.neutralChipDark
-                            : AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        actionLabel!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                  Semantics(
+                    button: true,
+                    enabled: onAction != null,
+                    label: actionLabel,
+                    child: GestureDetector(
+                      onTap: onAction,
+                      child: Container(
+                        height: 42,
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        decoration: BoxDecoration(
                           color: onAction == null
-                              ? AppColors.textDisabled
-                              : Colors.white,
+                              ? AppColors.neutralChipDark
+                              : AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          actionLabel!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: onAction == null
+                                ? AppColors.textDisabled
+                                : Colors.white,
+                          ),
                         ),
                       ),
                     ),

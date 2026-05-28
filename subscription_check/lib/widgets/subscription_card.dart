@@ -34,6 +34,7 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
   late bool _isAnnual;
   late TextEditingController _remainingCtrl;
   late TextEditingController _discountCtrl;
+  late TextEditingController _billingDayCtrl;
 
   @override
   void initState() {
@@ -56,12 +57,15 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
     final remainingText = s.remainingMonths.toString();
     final discountText =
         s.discountAmount > 0 ? s.discountAmount.toString() : '';
+    final billingDayText = s.billingDay?.toString() ?? '';
     if (_controllersReady) {
       _remainingCtrl.text = remainingText;
       _discountCtrl.text = discountText;
+      _billingDayCtrl.text = billingDayText;
     } else {
       _remainingCtrl = TextEditingController(text: remainingText);
       _discountCtrl = TextEditingController(text: discountText);
+      _billingDayCtrl = TextEditingController(text: billingDayText);
       _controllersReady = true;
     }
   }
@@ -70,15 +74,19 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
   void dispose() {
     _remainingCtrl.dispose();
     _discountCtrl.dispose();
+    _billingDayCtrl.dispose();
     super.dispose();
   }
 
   void _save() {
+    final billingDay = int.tryParse(_billingDayCtrl.text.trim());
+    if (billingDay != null && (billingDay < 1 || billingDay > 31)) return;
     widget.onUpdate(widget.subscription.copyWith(
       replacementAvailable: _replacement,
       isAnnual: _isAnnual,
       remainingMonths: double.tryParse(_remainingCtrl.text.trim()) ?? 0,
       discountAmount: int.tryParse(_discountCtrl.text.trim()) ?? 0,
+      billingDay: billingDay,
     ));
     setState(() => _editing = false);
   }
@@ -121,10 +129,12 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
     final s = widget.subscription;
     final remaining = double.tryParse(_remainingCtrl.text.trim()) ?? 0;
     final discount = int.tryParse(_discountCtrl.text.trim()) ?? 0;
+    final billingDay = int.tryParse(_billingDayCtrl.text.trim());
     return _replacement != s.replacementAvailable ||
         _isAnnual != s.isAnnual ||
         remaining != s.remainingMonths ||
-        discount != s.discountAmount;
+        discount != s.discountAmount ||
+        billingDay != s.billingDay;
   }
 
   Future<void> _onHeaderTap() async {
@@ -303,8 +313,10 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _InfoTag(label: sub.type),
+              _InfoTag(label: subscriptionTypeLabel(sub.type)),
               _InfoTag(label: sub.isAnnual ? '연간 구독' : '월간 구독'),
+              if (sub.billingDay != null)
+                _InfoTag(label: '매월 ${sub.billingDay}일 결제'),
               if (sub.remainingMonths > 0)
                 _InfoTag(
                     label:
@@ -319,24 +331,29 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
             duration: const Duration(milliseconds: 200),
             child: _editing ? _buildEditSection() : _buildEditButton(),
           ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _confirmDelete,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Icon(Icons.delete_outline, size: 14, color: AppColors.danger),
-                  SizedBox(width: 6),
-                  Text(
-                    '구독 삭제',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.danger,
+          Semantics(
+            button: true,
+            label: '구독 삭제',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _confirmDelete,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline,
+                        size: 14, color: AppColors.danger),
+                    SizedBox(width: 6),
+                    Text(
+                      '구독 삭제',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.danger,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -346,25 +363,29 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
   }
 
   Widget _buildEditButton() {
-    return GestureDetector(
-      key: const ValueKey('edit-btn'),
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _editing = true),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(Icons.tune, size: 14, color: AppColors.primary),
-            SizedBox(width: 6),
-            Text(
-              '상세 설정',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
+    return Semantics(
+      button: true,
+      label: '상세 설정',
+      child: GestureDetector(
+        key: const ValueKey('edit-btn'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _editing = true),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Icon(Icons.tune, size: 14, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text(
+                '상세 설정',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -392,6 +413,10 @@ class _SubscriptionCardState extends State<SubscriptionCard> {
                   const TextInputType.numberWithOptions(decimal: true)),
           const SizedBox(height: 14),
           _inputRow('할인/환급액', _discountCtrl, '0', '원',
+              keyboardType: TextInputType.number,
+              formatters: [FilteringTextInputFormatter.digitsOnly]),
+          const SizedBox(height: 14),
+          _inputRow('결제일', _billingDayCtrl, DateTime.now().day.toString(), '일',
               keyboardType: TextInputType.number,
               formatters: [FilteringTextInputFormatter.digitsOnly]),
           const SizedBox(height: 14),
@@ -696,31 +721,35 @@ class _TossToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChanged(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        width: 46,
-        height: 28,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: value ? AppColors.primary : const Color(0xFFD1D6DB),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          width: 24,
-          height: 24,
+    return Semantics(
+      button: true,
+      toggled: value,
+      child: GestureDetector(
+        onTap: () => onChanged(!value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          width: 46,
+          height: 28,
+          padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+            color: value ? AppColors.primary : const Color(0xFFD1D6DB),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -761,7 +790,7 @@ class _FeedbackRow extends StatelessWidget {
             children: [
               Expanded(
                 child: _FeedbackButton(
-                  label: '유지함',
+                  label: '유지했어요',
                   selected: currentFeedback == true,
                   onTap: () => onSelect(true),
                   accent: AppColors.success,
@@ -770,7 +799,7 @@ class _FeedbackRow extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _FeedbackButton(
-                  label: '해지함',
+                  label: '직접 해지',
                   selected: currentFeedback == false,
                   onTap: () => onSelect(false),
                   accent: AppColors.danger,
@@ -799,26 +828,31 @@ class _FeedbackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? accent : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? accent : const Color(0xFFE5E8EB),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? accent : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? accent : const Color(0xFFE5E8EB),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : AppColors.textMuted,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : AppColors.textMuted,
+            ),
           ),
         ),
       ),
@@ -842,22 +876,26 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 38,
-        padding: EdgeInsets.symmetric(horizontal: paddingH),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: foreground,
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 38,
+          padding: EdgeInsets.symmetric(horizontal: paddingH),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: foreground,
+            ),
           ),
         ),
       ),

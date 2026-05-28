@@ -2,6 +2,18 @@ enum UseFrequency { rare, monthly, weekly, frequent }
 
 enum LastUseRecency { over30d, between7and30d, between1and7d, under1d }
 
+const subscriptionTypeLabels = {
+  'Video': '영상',
+  'Music': '음악',
+  'Cloud': '생활',
+  'Education': '교육',
+  'Game': '게임',
+  'Fitness': '운동',
+  'News': '뉴스',
+};
+
+String subscriptionTypeLabel(String key) => subscriptionTypeLabels[key] ?? key;
+
 class Subscription {
   final String id;
   final String name;
@@ -16,6 +28,9 @@ class Subscription {
   final bool isAnnual;
   final double remainingMonths;
   final int discountAmount;
+  final int? billingDay;
+  final DateTime? nextBillingAt;
+  final int renewalNoticeDays;
   final String? emoji;
 
   /// 사용자가 마지막으로 남긴 유지/해지 피드백. null 이면 아직 피드백 없음.
@@ -54,6 +69,8 @@ class Subscription {
   Map<String, dynamic> toApiJson() {
     final map = <String, dynamic>{
       'id': id,
+      'name': name,
+      'emoji': emoji,
       'subscription_type': type,
       'monthly_cost': monthlyCost,
       'use_frequency': useFrequencyApiValue,
@@ -84,6 +101,9 @@ class Subscription {
         'is_annual': isAnnual,
         'remaining_months': remainingMonths,
         'discount_amount': discountAmount,
+        'billing_day': billingDay,
+        'next_billing_at': nextBillingAt?.toIso8601String(),
+        'renewal_notice_days': renewalNoticeDays,
       };
 
   static Subscription fromServerJson(Map<String, dynamic> json) {
@@ -102,9 +122,12 @@ class Subscription {
       isAnnual: json['is_annual'] as bool? ?? false,
       remainingMonths: (json['remaining_months'] as num?)?.toDouble() ?? 0.0,
       discountAmount: (json['discount_amount'] as num?)?.toInt() ?? 0,
+      billingDay: (json['billing_day'] as num?)?.toInt(),
+      nextBillingAt: _parseDateTime(json['next_billing_at'] as String?),
+      renewalNoticeDays: (json['renewal_notice_days'] as num?)?.toInt() ?? 3,
       emoji: json['emoji'] as String?,
       lastFeedbackKept: json['last_feedback_kept'] as bool?,
-      lastFeedbackAt: feedbackAt != null ? DateTime.tryParse(feedbackAt) : null,
+      lastFeedbackAt: _parseDateTime(feedbackAt),
     );
   }
 
@@ -150,6 +173,9 @@ class Subscription {
     bool? isAnnual,
     double? remainingMonths,
     int? discountAmount,
+    int? billingDay,
+    DateTime? nextBillingAt,
+    int? renewalNoticeDays,
     String? emoji,
     bool? lastFeedbackKept,
     DateTime? lastFeedbackAt,
@@ -168,6 +194,9 @@ class Subscription {
       isAnnual: isAnnual ?? this.isAnnual,
       remainingMonths: remainingMonths ?? this.remainingMonths,
       discountAmount: discountAmount ?? this.discountAmount,
+      billingDay: billingDay ?? this.billingDay,
+      nextBillingAt: nextBillingAt ?? this.nextBillingAt,
+      renewalNoticeDays: renewalNoticeDays ?? this.renewalNoticeDays,
       emoji: emoji ?? this.emoji,
       lastFeedbackKept: lastFeedbackKept ?? this.lastFeedbackKept,
       lastFeedbackAt: lastFeedbackAt ?? this.lastFeedbackAt,
@@ -188,10 +217,18 @@ class Subscription {
     this.isAnnual = false,
     this.remainingMonths = 0,
     this.discountAmount = 0,
+    this.billingDay,
+    this.nextBillingAt,
+    this.renewalNoticeDays = 3,
     this.emoji,
     this.lastFeedbackKept,
     this.lastFeedbackAt,
   });
+}
+
+DateTime? _parseDateTime(String? value) {
+  if (value == null || value.isEmpty) return null;
+  return DateTime.tryParse(value);
 }
 
 String freqShortLabel(UseFrequency f) {

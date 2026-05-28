@@ -87,15 +87,18 @@ class SubscriptionProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addSubscription(Subscription s) async {
+  Future<bool> addSubscription(Subscription s) async {
     try {
       final created = await createSubscription(s);
+      _errorMessage = null;
       _items.add(created);
       notifyListeners();
       _scheduleAnalyze();
+      return true;
     } catch (e) {
       _errorMessage = '구독 추가에 실패했습니다.';
       notifyListeners();
+      return false;
     }
   }
 
@@ -154,8 +157,8 @@ class SubscriptionProvider extends ChangeNotifier {
       _results = {
         for (final entry in fresh.entries)
           entry.key: _results[entry.key]?.userFeedbackKept != null
-              ? entry.value
-                  .copyWith(userFeedbackKept: _results[entry.key]!.userFeedbackKept)
+              ? entry.value.copyWith(
+                  userFeedbackKept: _results[entry.key]!.userFeedbackKept)
               : entry.value,
       };
     } catch (e) {

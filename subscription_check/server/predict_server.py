@@ -113,6 +113,15 @@ def _estimate_would_rebuy(freq_score: int, necessity: int) -> int:
     return max(1, min(5, round((freq_score + necessity) / 2)))
 
 
+def _optional_int(value):
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 # ── 단건 예측 (DB 저장 포함) ───────────────────────────────────────────────
 def predict_and_log(raw: dict, session, device_id: str | None = None) -> dict:
     monthly_cost        = int(raw.get("monthly_cost", 0))
@@ -152,6 +161,9 @@ def predict_and_log(raw: dict, session, device_id: str | None = None) -> dict:
     record = Prediction(
         **row,
         device_id=device_id,
+        subscription_id=_optional_int(raw.get("id")),
+        subscription_name=raw.get("name"),
+        emoji=raw.get("emoji"),
         predicted_churn=is_churn,
         predicted_confidence=round(confidence, 4),
         model_version=current_model_version,
@@ -701,6 +713,9 @@ def feedback():
             if sub is not None and (device_id is None or sub.device_id == device_id):
                 sub.last_feedback_kept = kept
                 sub.last_feedback_at   = now
+                row.subscription_id     = sub.id
+                row.subscription_name   = sub.name
+                row.emoji               = sub.emoji
 
     return jsonify({
         "ok": True,
@@ -799,6 +814,9 @@ def savings():
             if len(history) < 20:
                 history.append({
                     "prediction_id":     r.id,
+                    "subscription_id":   str(r.subscription_id) if r.subscription_id else None,
+                    "subscription_name": r.subscription_name,
+                    "emoji":             r.emoji,
                     "subscription_type": r.subscription_type,
                     "monthly_cost":      monthly_cost,
                     "discount_amount":   discount,

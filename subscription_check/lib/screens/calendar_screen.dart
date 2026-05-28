@@ -202,61 +202,69 @@ class _Header extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          CompositedTransformTarget(
-            link: monthPickerLink,
-            child: GestureDetector(
-              onTap: onPickMonth,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.neutralChip,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  children: [
-                    Text(
-                      DateFormat('yyyy년 M월').format(focused),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textSecondary,
+          Semantics(
+            button: true,
+            label: '월 선택',
+            child: CompositedTransformTarget(
+              link: monthPickerLink,
+              child: GestureDetector(
+                onTap: onPickMonth,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.neutralChip,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(
+                    children: [
+                      Text(
+                        DateFormat('yyyy년 M월').format(focused),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedRotation(
-                      turns: isPickerOpen ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 180),
-                      child: const Icon(
-                        CupertinoIcons.chevron_down,
-                        size: 13,
-                        color: AppColors.textTertiary,
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: isPickerOpen ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 13,
+                          color: AppColors.textTertiary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onToday,
-            child: Container(
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 11),
-              decoration: BoxDecoration(
-                color: AppColors.primarySoft,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                '오늘',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
+          Semantics(
+            button: true,
+            label: '오늘로 이동',
+            child: GestureDetector(
+              onTap: onToday,
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 11),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  '오늘',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
                 ),
               ),
             ),
@@ -386,7 +394,7 @@ class _UpcomingSection extends StatelessWidget {
                       padding: EdgeInsets.symmetric(vertical: 18),
                       child: Center(
                         child: Text(
-                          '이번 달 예정된 결제가 없어요',
+                          '결제일이 등록된 구독이 없어요',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -532,48 +540,53 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasEvent = events.isNotEmpty;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        decoration: BoxDecoration(
-          color: hasEvent ? AppColors.primarySoftBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: isToday ? Border.all(color: AppColors.primary) : null,
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Column(
-          children: [
-            Text(
-              '$day',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color:
-                    hasEvent ? AppColors.primaryDark : AppColors.textSecondary,
+    return Semantics(
+      button: true,
+      label: hasEvent ? '$day일, 결제 ${events.length}건' : '$day일',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          decoration: BoxDecoration(
+            color: hasEvent ? AppColors.primarySoftBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: isToday ? Border.all(color: AppColors.primary) : null,
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Column(
+            children: [
+              Text(
+                '$day',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: hasEvent
+                      ? AppColors.primaryDark
+                      : AppColors.textSecondary,
+                ),
               ),
-            ),
-            const Spacer(),
-            if (hasEvent)
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 2,
-                runSpacing: 2,
-                children: [
-                  for (final event in events.take(3))
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: event.subscription.isAnnual
-                            ? AppColors.danger
-                            : AppColors.primary,
-                        shape: BoxShape.circle,
+              const Spacer(),
+              if (hasEvent)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 2,
+                  runSpacing: 2,
+                  children: [
+                    for (final event in events.take(3))
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: event.subscription.isAnnual
+                              ? AppColors.danger
+                              : AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                ],
-              ),
-          ],
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -911,20 +924,35 @@ class _BillingEvent {
 }
 
 List<_BillingEvent> _buildEvents(List<Subscription> items, DateTime focused) {
-  final daysInMonth = DateTime(focused.year, focused.month + 1, 0).day;
   return [
-    for (var i = 0; i < items.length; i++)
-      _BillingEvent(
-        date: DateTime(
-          focused.year,
-          focused.month,
-          ((i * 5 + 4) % daysInMonth) + 1,
+    for (final item in items)
+      if (_billingDateForMonth(item, focused) != null)
+        _BillingEvent(
+          date: _billingDateForMonth(item, focused)!,
+          subscription: item,
         ),
-        subscription: items[i],
-      ),
-  ];
+  ]..sort((a, b) => a.date.compareTo(b.date));
 }
 
 bool _isSameDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+DateTime? _billingDateForMonth(Subscription item, DateTime focused) {
+  final nextBillingAt = item.nextBillingAt;
+  if (nextBillingAt != null &&
+      nextBillingAt.year == focused.year &&
+      nextBillingAt.month == focused.month) {
+    return nextBillingAt;
+  }
+
+  final billingDay = item.billingDay;
+  if (billingDay == null) return null;
+
+  final daysInMonth = DateTime(focused.year, focused.month + 1, 0).day;
+  return DateTime(
+    focused.year,
+    focused.month,
+    billingDay.clamp(1, daysInMonth),
+  );
 }

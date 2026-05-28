@@ -36,7 +36,15 @@ class TermsScreen extends StatelessWidget {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-                  child: const _TermsContent(),
+                  child: showAgreeButton
+                      ? _ConsentSummary(
+                          onViewFull: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TermsScreen(),
+                            ),
+                          ),
+                        )
+                      : const _TermsContent(),
                 ),
               ),
             ),
@@ -76,6 +84,138 @@ class _Header extends StatelessWidget {
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
               letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsentSummary extends StatelessWidget {
+  final VoidCallback onViewFull;
+
+  const _ConsentSummary({required this.onViewFull});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _IntroCard(),
+        const SizedBox(height: 16),
+        const _SummaryCard(
+          icon: Icons.lock_outline,
+          title: '입력한 구독 정보로만 분석해요',
+          body: '구독명, 금액, 사용 빈도, 최근 사용 시점, 필요도 같은 정보를 저장하고 추천에 사용합니다.',
+        ),
+        const _SummaryCard(
+          icon: Icons.auto_graph,
+          title: '추천은 참고용이에요',
+          body: '실제 해지, 환불, 계약 조건은 각 서비스의 공식 채널에서 직접 확인해야 합니다.',
+        ),
+        const _SummaryCard(
+          icon: Icons.fingerprint,
+          title: '생체정보 원본은 저장하지 않아요',
+          body: 'Face ID 또는 Touch ID를 쓰더라도 앱은 기기 인증 결과만 확인합니다.',
+        ),
+        const SizedBox(height: 8),
+        Semantics(
+          button: true,
+          label: '전체 이용약관 및 개인정보 안내 보기',
+          child: GestureDetector(
+            onTap: onViewFull,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '전체 이용약관 및 개인정보 안내 보기',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right,
+                      size: 18, color: AppColors.textDisabled),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+
+  const _SummaryCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: AppColors.primaryDark),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -269,21 +409,25 @@ class _AgreeBar extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-          child: GestureDetector(
-            onTap: onAgree,
-            child: Container(
-              height: 54,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                '동의하고 시작하기',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+          child: Semantics(
+            button: true,
+            label: '동의하고 시작하기',
+            child: GestureDetector(
+              onTap: onAgree,
+              child: Container(
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  '동의하고 시작하기',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

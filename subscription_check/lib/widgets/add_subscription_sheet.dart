@@ -79,9 +79,13 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
   bool _editingPreset = false;
   final _nameCtrl = TextEditingController();
   final _costCtrl = TextEditingController();
+  final _billingDayCtrl =
+      TextEditingController(text: DateTime.now().day.toString());
   final _searchCtrl = TextEditingController();
   String _type = _types[0];
   String _activeTab = 'all';
+  bool _isSubmitting = false;
+  String? _submitError;
 
   // Step 2 state
   UseFrequency _freq = UseFrequency.weekly;
@@ -92,6 +96,7 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
   void dispose() {
     _nameCtrl.dispose();
     _costCtrl.dispose();
+    _billingDayCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -110,9 +115,11 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
       _selectedPreset = p;
       _nameCtrl.text = p.name;
       _costCtrl.text = p.monthlyCost.toString();
+      _billingDayCtrl.text = DateTime.now().day.toString();
       _type = p.type;
       _searchCtrl.clear();
       _editingPreset = false;
+      _submitError = null;
     });
   }
 
@@ -123,31 +130,31 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
       _costCtrl.clear();
       _type = _types[0];
       _editingPreset = false;
+      _submitError = null;
     });
   }
 
-  void _refreshForm() => setState(() {});
+  void _refreshForm() => setState(() => _submitError = null);
 
-  void _setActiveTab(String value) =>
-      setState(() => _activeTab = value);
+  void _setActiveTab(String value) => setState(() => _activeTab = value);
 
-  void _setEditingPreset(bool value) =>
-      setState(() => _editingPreset = value);
+  void _setEditingPreset(bool value) => setState(() => _editingPreset = value);
 
   void _setType(String value) => setState(() => _type = value);
 
-  void _setFrequency(UseFrequency value) =>
-      setState(() => _freq = value);
+  void _setFrequency(UseFrequency value) => setState(() => _freq = value);
 
-  void _setRecency(LastUseRecency value) =>
-      setState(() => _recency = value);
+  void _setRecency(LastUseRecency value) => setState(() => _recency = value);
 
   void _setNecessity(int value) => setState(() => _necessity = value);
 
   bool get _canGoNext {
     if (_step == 0) {
+      final billingDay = int.tryParse(_billingDayCtrl.text.trim()) ?? 0;
       return _nameCtrl.text.trim().isNotEmpty &&
-          (int.tryParse(_costCtrl.text.trim()) ?? 0) > 0;
+          (int.tryParse(_costCtrl.text.trim()) ?? 0) > 0 &&
+          billingDay >= 1 &&
+          billingDay <= 31;
     }
     return true;
   }
@@ -167,13 +174,20 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
     final name = _nameCtrl.text.trim();
     final cost = int.tryParse(_costCtrl.text.trim()) ?? 0;
-    if (name.isEmpty || cost <= 0) return;
+    final billingDay = int.tryParse(_billingDayCtrl.text.trim()) ?? 0;
+    if (name.isEmpty || cost <= 0 || billingDay < 1 || billingDay > 31) return;
 
     final provider = context.read<SubscriptionProvider>();
-    provider.addSubscription(Subscription(
+    setState(() {
+      _isSubmitting = true;
+      _submitError = null;
+    });
+
+    final success = await provider.addSubscription(Subscription(
       id: provider.nextId,
       name: name,
       type: _type,
@@ -185,9 +199,18 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
       isAnnual: _selectedPreset?.isAnnual ?? false,
       remainingMonths: 0,
       discountAmount: _selectedPreset?.discountAmount ?? 0,
+      billingDay: billingDay,
       emoji: _selectedPreset?.emoji,
     ));
-    Navigator.of(context).pop();
+    if (!mounted) return;
+    if (success) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _isSubmitting = false;
+      _submitError = provider.errorMessage ?? '구독을 추가할 수 없습니다.';
+    });
   }
 
   @override
@@ -239,6 +262,8 @@ class _AddSubscriptionSheetState extends State<AddSubscriptionSheet> {
             _BottomCta(
               isLast: _step >= _totalSteps - 1,
               canGoNext: _canGoNext,
+              isSubmitting: _isSubmitting,
+              errorMessage: _submitError,
               onNext: _goNext,
               onSubmit: _submit,
               extraBottomInset: safePaddingBottom,
@@ -277,16 +302,20 @@ class _Header extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: onBack,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          isFirstStep ? Icons.close : Icons.chevron_left,
-                          size: 22,
-                          color: AppColors.textSecondary,
+                    Semantics(
+                      button: true,
+                      label: isFirstStep ? '닫기' : '이전',
+                      child: GestureDetector(
+                        onTap: onBack,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            isFirstStep ? Icons.close : Icons.chevron_left,
+                            size: 22,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -357,13 +386,17 @@ class _Header extends StatelessWidget {
 class _BottomCta extends StatelessWidget {
   final bool isLast;
   final bool canGoNext;
+  final bool isSubmitting;
+  final String? errorMessage;
   final VoidCallback onNext;
-  final VoidCallback onSubmit;
+  final Future<void> Function() onSubmit;
   final double extraBottomInset;
 
   const _BottomCta({
     required this.isLast,
     required this.canGoNext,
+    required this.isSubmitting,
+    required this.errorMessage,
     required this.onNext,
     required this.onSubmit,
     required this.extraBottomInset,
@@ -372,6 +405,7 @@ class _BottomCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final enabled = !isSubmitting && (isLast || canGoNext);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -389,42 +423,81 @@ class _BottomCta extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.fromLTRB(
                 20, 12, 20, 16 + bottomPad + extraBottomInset),
-            child: GestureDetector(
-              onTap: isLast ? onSubmit : (canGoNext ? onNext : null),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 54,
-                decoration: BoxDecoration(
-                  color: (isLast || canGoNext)
-                      ? AppColors.primary
-                      : AppColors.neutralChipDark,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isLast ? '구독 추가하기' : '다음',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: (isLast || canGoNext)
-                            ? Colors.white
-                            : AppColors.textDisabled,
-                      ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (errorMessage != null) ...[
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.danger,
                     ),
-                    if (!isLast) ...[
-                      const SizedBox(width: 6),
-                      Icon(Icons.arrow_forward,
-                          size: 18,
-                          color: canGoNext
-                              ? Colors.white
-                              : AppColors.textDisabled),
-                    ],
-                  ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Semantics(
+                  button: true,
+                  enabled: enabled,
+                  label: isLast ? '구독 추가하기' : '다음',
+                  child: GestureDetector(
+                    onTap: enabled
+                        ? () {
+                            if (isLast) {
+                              onSubmit();
+                            } else {
+                              onNext();
+                            }
+                          }
+                        : null,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: enabled
+                            ? AppColors.primary
+                            : AppColors.neutralChipDark,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  isLast ? '구독 추가하기' : '다음',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: enabled
+                                        ? Colors.white
+                                        : AppColors.textDisabled,
+                                  ),
+                                ),
+                                if (!isLast) ...[
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.arrow_forward,
+                                      size: 18,
+                                      color: canGoNext
+                                          ? Colors.white
+                                          : AppColors.textDisabled),
+                                ],
+                              ],
+                            ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -490,6 +563,7 @@ class _Step1 extends StatelessWidget {
                     name: state._nameCtrl.text,
                     type: state._type,
                     cost: int.tryParse(state._costCtrl.text) ?? 0,
+                    billingDay: int.tryParse(state._billingDayCtrl.text.trim()),
                     onEdit: () => state._setEditingPreset(true),
                   )
                 : _ManualForm(
@@ -500,6 +574,7 @@ class _Step1 extends StatelessWidget {
                         state._selectedPreset != null ? '서비스 정보 수정' : '직접 입력',
                     nameCtrl: state._nameCtrl,
                     costCtrl: state._costCtrl,
+                    billingDayCtrl: state._billingDayCtrl,
                     type: state._type,
                     onTypeChanged: state._setType,
                     showConfirm: state._editingPreset,
@@ -575,22 +650,28 @@ class _CategoryTabsBar extends StatelessWidget {
         itemBuilder: (_, i) {
           final tab = _categoryTabs[i];
           final isActive = active == tab.key;
-          return GestureDetector(
-            onTap: () => onSelect(tab.key),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.textPrimary : AppColors.neutralChip,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                tab.label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isActive ? Colors.white : AppColors.textTertiary,
+          return Semantics(
+            button: true,
+            selected: isActive,
+            label: '${tab.label} 카테고리',
+            child: GestureDetector(
+              onTap: () => onSelect(tab.key),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      isActive ? AppColors.textPrimary : AppColors.neutralChip,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  tab.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? Colors.white : AppColors.textTertiary,
+                  ),
                 ),
               ),
             ),
@@ -670,48 +751,53 @@ class _PresetChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.neutralSoft,
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 1.5 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${preset.name} 선택',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : AppColors.neutralSoft,
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(999),
           ),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(preset.emoji, style: const TextStyle(fontSize: 15)),
-            const SizedBox(width: 8),
-            Text(
-              preset.name,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF333D4B),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(preset.emoji, style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 8),
+              Text(
+                preset.name,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : const Color(0xFF333D4B),
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '${preset.monthlyCost.toString().replaceAllMapped(
-                    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-                    (m) => '${m[1]},',
-                  )}원',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: selected
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : AppColors.textTertiary,
+              const SizedBox(width: 6),
+              Text(
+                '${preset.monthlyCost.toString().replaceAllMapped(
+                      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+                      (m) => '${m[1]},',
+                    )}원',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : AppColors.textTertiary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -725,34 +811,39 @@ class _ManualChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primarySoftBg : AppColors.neutralSoft,
-          border: Border.all(
-            color: active ? AppColors.primary : AppColors.border,
-            width: active ? 1.5 : 1,
-          ),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('✏️', style: TextStyle(fontSize: 14)),
-            SizedBox(width: 8),
-            Text(
-              '직접 입력',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333D4B),
-              ),
+    return Semantics(
+      button: true,
+      selected: active,
+      label: '직접 입력',
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primarySoftBg : AppColors.neutralSoft,
+            border: Border.all(
+              color: active ? AppColors.primary : AppColors.border,
+              width: active ? 1.5 : 1,
             ),
-          ],
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text('✏️', style: TextStyle(fontSize: 14)),
+              SizedBox(width: 8),
+              Text(
+                '직접 입력',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333D4B),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -764,6 +855,7 @@ class _PresetInfoCard extends StatelessWidget {
   final String name;
   final String type;
   final int cost;
+  final int? billingDay;
   final VoidCallback onEdit;
 
   const _PresetInfoCard({
@@ -772,6 +864,7 @@ class _PresetInfoCard extends StatelessWidget {
     required this.name,
     required this.type,
     required this.cost,
+    required this.billingDay,
     required this.onEdit,
   });
 
@@ -819,7 +912,8 @@ class _PresetInfoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$type · 월 ${formatKRW(cost)}원',
+                    '${subscriptionTypeLabel(type)} · 월 ${formatKRW(cost)}원'
+                    '${billingDay != null ? ' · 매월 $billingDay일' : ''}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textTertiary,
@@ -828,21 +922,25 @@ class _PresetInfoCard extends StatelessWidget {
                 ],
               ),
             ),
-            GestureDetector(
-              onTap: onEdit,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primarySoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  '수정',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+            Semantics(
+              button: true,
+              label: '서비스 정보 수정',
+              child: GestureDetector(
+                onTap: onEdit,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '수정',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -858,6 +956,7 @@ class _ManualForm extends StatelessWidget {
   final String title;
   final TextEditingController nameCtrl;
   final TextEditingController costCtrl;
+  final TextEditingController billingDayCtrl;
   final String type;
   final ValueChanged<String> onTypeChanged;
   final bool showConfirm;
@@ -869,6 +968,7 @@ class _ManualForm extends StatelessWidget {
     required this.title,
     required this.nameCtrl,
     required this.costCtrl,
+    required this.billingDayCtrl,
     required this.type,
     required this.onTypeChanged,
     required this.showConfirm,
@@ -924,23 +1024,37 @@ class _ManualForm extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _FloatingInput(
+            label: '결제일',
+            placeholder: DateTime.now().day.toString(),
+            controller: billingDayCtrl,
+            suffix: '일',
+            keyboardType: TextInputType.number,
+            formatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) => onChanged(),
+          ),
           if (showConfirm) ...[
             const SizedBox(height: 16),
-            GestureDetector(
-              onTap: onConfirm,
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  '확인',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+            Semantics(
+              button: true,
+              label: '확인',
+              child: GestureDetector(
+                onTap: onConfirm,
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -1077,7 +1191,10 @@ class _TypeDropdown extends StatelessWidget {
               ),
               dropdownColor: AppColors.surface,
               items: _types
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .map((t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(subscriptionTypeLabel(t)),
+                      ))
                   .toList(),
               onChanged: (v) {
                 if (v != null) onChanged(v);
@@ -1229,29 +1346,34 @@ class _FreqGrid extends StatelessWidget {
   Widget _freqTile(_FreqOption o) {
     final sel = value == o.value;
     return Expanded(
-      child: GestureDetector(
-        onTap: () => onSelect(o.value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: sel ? AppColors.primary : AppColors.neutralChip,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(o.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(height: 6),
-              Text(
-                o.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: sel ? Colors.white : AppColors.textSecondary,
+      child: Semantics(
+        button: true,
+        selected: sel,
+        label: o.label,
+        child: GestureDetector(
+          onTap: () => onSelect(o.value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: sel ? AppColors.primary : AppColors.neutralChip,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(o.emoji, style: const TextStyle(fontSize: 18)),
+                const SizedBox(height: 6),
+                Text(
+                  o.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: sel ? Colors.white : AppColors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1271,26 +1393,31 @@ class _RecencyRow extends StatelessWidget {
         for (var i = 0; i < _recencyOptions.length; i++) ...[
           if (i > 0) const SizedBox(width: 8),
           Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(_recencyOptions[i].value),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: value == _recencyOptions[i].value
-                      ? AppColors.primary
-                      : AppColors.neutralChip,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  _recencyOptions[i].label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+            child: Semantics(
+              button: true,
+              selected: value == _recencyOptions[i].value,
+              label: _recencyOptions[i].label,
+              child: GestureDetector(
+                onTap: () => onSelect(_recencyOptions[i].value),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
                     color: value == _recencyOptions[i].value
-                        ? Colors.white
-                        : AppColors.textSecondary,
+                        ? AppColors.primary
+                        : AppColors.neutralChip,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    _recencyOptions[i].label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: value == _recencyOptions[i].value
+                          ? Colors.white
+                          : AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -1314,37 +1441,42 @@ class _NecessityRow extends StatelessWidget {
         for (var n = 1; n <= 5; n++) ...[
           if (n > 1) const SizedBox(width: 6),
           Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(n),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: n <= value
-                      ? LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: n <= 2
-                              ? const [
-                                  AppColors.primaryLight,
-                                  AppColors.primary,
-                                ]
-                              : const [
-                                  AppColors.primary,
-                                  Color(0xFF2272EB),
-                                ],
-                        )
-                      : null,
-                  color: n <= value ? null : AppColors.neutralChip,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(
-                  '$n',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: n <= value ? Colors.white : AppColors.textDisabled,
+            child: Semantics(
+              button: true,
+              selected: n == value,
+              label: '필요도 $n',
+              child: GestureDetector(
+                onTap: () => onSelect(n),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: n <= value
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: n <= 2
+                                ? const [
+                                    AppColors.primaryLight,
+                                    AppColors.primary,
+                                  ]
+                                : const [
+                                    AppColors.primary,
+                                    Color(0xFF2272EB),
+                                  ],
+                          )
+                        : null,
+                    color: n <= value ? null : AppColors.neutralChip,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '$n',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: n <= value ? Colors.white : AppColors.textDisabled,
+                    ),
                   ),
                 ),
               ),

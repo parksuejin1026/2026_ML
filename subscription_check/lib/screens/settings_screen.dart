@@ -20,8 +20,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _billingAlert = true;
-  bool _weeklyReport = false;
   bool _lockEnabled = false;
   bool _biometricsEnabled = false;
   AppBiometricKind _biometricKind = AppBiometricKind.biometric;
@@ -152,47 +150,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   slivers: [
                     SliverToBoxAdapter(
                       child: _Section(
-                        title: '알림',
+                        title: '앱 데이터',
                         children: [
-                          _SwitchRow(
-                            icon: CupertinoIcons.bell_fill,
-                            title: '결제 전 알림',
-                            subtitle: '예정 결제 3일 전에 알려줘요',
-                            value: _billingAlert,
-                            onChanged: (v) => setState(() => _billingAlert = v),
-                          ),
-                          _SwitchRow(
-                            icon: CupertinoIcons.chart_bar_alt_fill,
-                            title: '주간 리포트',
-                            subtitle: '구독료 변화와 추천을 요약해요',
-                            value: _weeklyReport,
-                            onChanged: (v) => setState(() => _weeklyReport = v),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _Section(
-                        title: '데이터',
-                        children: [
-                          _ActionRow(
-                            icon: CupertinoIcons.arrow_down_doc_fill,
-                            title: '데이터 내보내기',
-                            subtitle: 'CSV 내보내기 기능 자리',
-                            onTap: () => _showStub(context, '데이터 내보내기'),
-                          ),
                           _ActionRow(
                             icon: CupertinoIcons.arrow_2_circlepath,
                             title: '구독 목록 새로고침',
                             subtitle: '서버에 저장된 목록을 다시 불러와요',
                             onTap: provider.loadFromServer,
-                          ),
-                          _ActionRow(
-                            icon: CupertinoIcons.delete_solid,
-                            title: '삭제된 구독 보관함',
-                            subtitle: '해지 기록 관리 기능 자리',
-                            destructive: true,
-                            onTap: () => _showStub(context, '보관함'),
                           ),
                         ],
                       ),
@@ -251,16 +215,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  void _showStub(BuildContext context, String title) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$title 기능은 백엔드 연동 시 활성화됩니다.'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.textPrimary,
       ),
     );
   }
@@ -492,7 +446,6 @@ class _ActionRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final bool destructive;
   final VoidCallback onTap;
 
   const _ActionRow({
@@ -500,28 +453,30 @@ class _ActionRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.destructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? AppColors.danger : AppColors.primary;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-        child: Row(
-          children: [
-            _SettingIcon(icon: icon, color: color),
-            const SizedBox(width: 12),
-            Expanded(child: _SettingText(title: title, subtitle: subtitle)),
-            const Icon(
-              CupertinoIcons.chevron_right,
-              size: 16,
-              color: AppColors.textDisabled,
-            ),
-          ],
+    return Semantics(
+      button: true,
+      label: title,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+          child: Row(
+            children: [
+              _SettingIcon(icon: icon, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(child: _SettingText(title: title, subtitle: subtitle)),
+              const Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: AppColors.textDisabled,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -713,7 +668,7 @@ class _AppInfo extends StatelessWidget {
         child: const Padding(
           padding: EdgeInsets.fromLTRB(16, 18, 16, 0),
           child: Text(
-            '${AppBrand.displayName} 1.0.0 · 프론트엔드 프로토타입',
+            '${AppBrand.displayName} 1.0.0',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
