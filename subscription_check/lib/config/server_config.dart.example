@@ -1,5 +1,5 @@
 // 실제 백엔드 연결은 dart-define 으로 켭니다.
-// 기본 실행은 BACKEND_ENABLED=false 이며 mock 데이터만 사용합니다.
+// 기본 실행은 BACKEND_ENABLED=false 이며 로컬 메모리 모드로 동작합니다.
 
 // 예:
 // flutter run -d chrome --dart-define=BACKEND_ENABLED=true

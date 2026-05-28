@@ -263,56 +263,7 @@ Future<bool> checkServerHealth() async {
   }
 }
 
-final _mockSubscriptions = <Subscription>[
-  Subscription(
-    id: 'demo-netflix',
-    name: 'Netflix',
-    type: 'Video',
-    monthlyCost: 17000,
-    useFrequency: UseFrequency.weekly,
-    lastUseRecency: LastUseRecency.between1and7d,
-    perceivedNecessity: 3,
-    replacementAvailable: true,
-    billingDay: 12,
-    emoji: '🎬',
-  ),
-  Subscription(
-    id: 'demo-melon',
-    name: 'Melon',
-    type: 'Music',
-    monthlyCost: 10900,
-    useFrequency: UseFrequency.frequent,
-    lastUseRecency: LastUseRecency.under1d,
-    perceivedNecessity: 5,
-    replacementAvailable: false,
-    billingDay: 8,
-    emoji: '🎧',
-  ),
-  Subscription(
-    id: 'demo-icloud',
-    name: 'iCloud+',
-    type: 'Cloud',
-    monthlyCost: 3300,
-    useFrequency: UseFrequency.frequent,
-    lastUseRecency: LastUseRecency.under1d,
-    perceivedNecessity: 4,
-    replacementAvailable: false,
-    billingDay: 20,
-    emoji: '☁️',
-  ),
-  Subscription(
-    id: 'demo-news',
-    name: 'Digital News',
-    type: 'News',
-    monthlyCost: 12000,
-    useFrequency: UseFrequency.rare,
-    lastUseRecency: LastUseRecency.over30d,
-    perceivedNecessity: 2,
-    replacementAvailable: true,
-    billingDay: 27,
-    emoji: '📰',
-  ),
-];
+final _mockSubscriptions = <Subscription>[];
 
 int _mockId = 1000;
 int _mockPredictionId = 2000;
